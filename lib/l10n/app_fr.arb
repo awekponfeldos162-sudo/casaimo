@@ -1,0 +1,366 @@
+{
+  "@@locale": "fr",
+
+  "appName": "CasaImo",
+  "@appName": { "description": "Nom de l'application" },
+
+  "tagline": "Votre maison de rêve, à portée de main",
+  "@tagline": { "description": "Slogan de l'application" },
+
+  "language": "Langue",
+  "@language": {},
+
+  "languageFr": "Français",
+  "@languageFr": {},
+
+  "languageEn": "English",
+  "@languageEn": {},
+
+  "save": "Enregistrer",
+  "@save": {},
+
+  "cancel": "Annuler",
+  "@cancel": {},
+
+  "confirm": "Confirmer",
+  "@confirm": {},
+
+  "continueBtn": "Continuer",
+  "@continueBtn": {},
+
+  "back": "Retour",
+  "@back": {},
+
+  "close": "Fermer",
+  "@close": {},
+
+  "loading": "Chargement...",
+  "@loading": {},
+
+  "error": "Erreur",
+  "@error": {},
+
+  "retry": "Réessayer",
+  "@retry": {},
+
+  "skip": "Passer",
+  "@skip": {},
+
+  "next": "Suivant",
+  "@next": {},
+
+  "start": "Commencer",
+  "@start": {},
+
+  "search": "Rechercher",
+  "@search": {},
+
+  "searchHint": "Ville, quartier, type de logement…",
+  "@searchHint": {},
+
+  "noResults": "Aucun résultat",
+  "@noResults": {},
+
+  "seeAll": "Voir tout",
+  "@seeAll": {},
+
+  "seeMore": "Voir plus",
+  "@seeMore": {},
+
+  "seeLess": "Voir moins",
+  "@seeLess": {},
+
+  "readMore": "Lire la suite",
+  "@readMore": {},
+
+  "login": "Se connecter",
+  "@login": {},
+
+  "signup": "S'inscrire",
+  "@signup": {},
+
+  "logout": "Se déconnecter",
+  "@logout": {},
+
+  "loginTitle": "Connexion",
+  "@loginTitle": {},
+
+  "loginSubtitle": "Bienvenue ! Connectez-vous pour continuer.",
+  "@loginSubtitle": {},
+
+  "continueWithGoogle": "Continuer avec Google",
+  "@continueWithGoogle": {},
+
+  "orContinueWithEmail": "ou continuer avec email",
+  "@orContinueWithEmail": {},
+
+  "email": "Adresse email",
+  "@email": {},
+
+  "password": "Mot de passe",
+  "@password": {},
+
+  "forgotPassword": "Mot de passe oublié ?",
+  "@forgotPassword": {},
+
+  "noAccount": "Pas de compte ?",
+  "@noAccount": {},
+
+  "alreadyAccount": "Déjà un compte ?",
+  "@alreadyAccount": {},
+
+  "exploreWithoutAccount": "Explorer sans compte",
+  "@exploreWithoutAccount": {},
+
+  "chooseProfile": "Qui êtes-vous ?",
+  "@chooseProfile": {},
+
+  "clientRole": "Je suis Client",
+  "@clientRole": {},
+
+  "hostRole": "Je suis Propriétaire",
+  "@hostRole": {},
+
+  "clientSignupTitle": "Inscription Client",
+  "@clientSignupTitle": {},
+
+  "hostSignupTitle": "Inscription Propriétaire",
+  "@hostSignupTitle": {},
+
+  "createAccount": "Créer mon compte",
+  "@createAccount": {},
+
+  "createHostAccount": "Créer mon compte propriétaire",
+  "@createHostAccount": {},
+
+  "fullName": "Nom complet",
+  "@fullName": {},
+
+  "phone": "Téléphone",
+  "@phone": {},
+
+  "home": "Accueil",
+  "@home": {},
+
+  "favorites": "Favoris",
+  "@favorites": {},
+
+  "messages": "Messages",
+  "@messages": {},
+
+  "profile": "Profil",
+  "@profile": {},
+
+  "settings": "Paramètres",
+  "@settings": {},
+
+  "notifications": "Notifications",
+  "@notifications": {},
+
+  "myBookings": "Mes réservations",
+  "@myBookings": {},
+
+  "listingDetail": "Détail du bien",
+  "@listingDetail": {},
+
+  "reserve": "Réserver maintenant",
+  "@reserve": {},
+
+  "reservationTitle": "Réservation",
+  "@reservationTitle": {},
+
+  "stepDates": "Dates & Voyageurs",
+  "@stepDates": {},
+
+  "stepPayment": "Récapitulatif & Paiement",
+  "@stepPayment": {},
+
+  "checkIn": "Arrivée",
+  "@checkIn": {},
+
+  "checkOut": "Départ",
+  "@checkOut": {},
+
+  "chooseDates": "Choisissez vos dates",
+  "@chooseDates": {},
+
+  "travelers": "Voyageurs",
+  "@travelers": {},
+
+  "nights": "{count, plural, one{{count} nuit} other{{count} nuits}}",
+  "@nights": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "pricePerNight": "/ nuit",
+  "@pricePerNight": {},
+
+  "totalPrice": "Total toutes charges comprises",
+  "@totalPrice": {},
+
+  "cleaningFee": "Frais de ménage",
+  "@cleaningFee": {},
+
+  "serviceFee": "Frais de service",
+  "@serviceFee": {},
+
+  "confirmAndPay": "Confirmer et payer",
+  "@confirmAndPay": {},
+
+  "paymentMethod": "Mode de paiement",
+  "@paymentMethod": {},
+
+  "paymentComplete": "Paiement Complet !",
+  "@paymentComplete": {},
+
+  "bookingConfirmed": "Réservation confirmée",
+  "@bookingConfirmed": {},
+
+  "bookingNumber": "N° de réservation",
+  "@bookingNumber": {},
+
+  "backToHome": "Retour à l'accueil",
+  "@backToHome": {},
+
+  "seeMyBookings": "Voir mes réservations",
+  "@seeMyBookings": {},
+
+  "hostProfile": "Profil du propriétaire",
+  "@hostProfile": {},
+
+  "seeProfile": "Voir le profil",
+  "@seeProfile": {},
+
+  "sendMessage": "Envoyer un message",
+  "@sendMessage": {},
+
+  "call": "Appeler",
+  "@call": {},
+
+  "verified": "Vérifié",
+  "@verified": {},
+
+  "notVerified": "Non vérifié",
+  "@notVerified": {},
+
+  "description": "Description",
+  "@description": {},
+
+  "amenities": "Équipements",
+  "@amenities": {},
+
+  "reviews": "Avis",
+  "@reviews": {},
+
+  "policy": "Politique",
+  "@policy": {},
+
+  "cancellationPolicy": "Annulation",
+  "@cancellationPolicy": {},
+
+  "minStay": "Séjour min",
+  "@minStay": {},
+
+  "maxStay": "Séjour max",
+  "@maxStay": {},
+
+  "bedrooms": "chambres",
+  "@bedrooms": {},
+
+  "bathrooms": "salles de bain",
+  "@bathrooms": {},
+
+  "maxGuests": "personnes max",
+  "@maxGuests": {},
+
+  "dashboard": "Tableau de bord",
+  "@dashboard": {},
+
+  "myListings": "Mes annonces",
+  "@myListings": {},
+
+  "addListing": "Ajouter une annonce",
+  "@addListing": {},
+
+  "editListing": "Modifier l'annonce",
+  "@editListing": {},
+
+  "calendar": "Calendrier",
+  "@calendar": {},
+
+  "earnings": "Revenus",
+  "@earnings": {},
+
+  "step": "Étape {current}/{total}",
+  "@step": {
+    "placeholders": {
+      "current": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+
+  "personalInfo": "Informations personnelles",
+  "@personalInfo": {},
+
+  "businessInfo": "Votre activité",
+  "@businessInfo": {},
+
+  "summary": "Récapitulatif",
+  "@summary": {},
+
+  "typeOfBusiness": "Type d'activité",
+  "@typeOfBusiness": {},
+
+  "businessName": "Nom commercial",
+  "@businessName": {},
+
+  "address": "Adresse",
+  "@address": {},
+
+  "securePayment": "Paiement 100% sécurisé · Données chiffrées",
+  "@securePayment": {},
+
+  "errorFieldRequired": "Veuillez remplir tous les champs obligatoires",
+  "@errorFieldRequired": {},
+
+  "errorPasswordShort": "Mot de passe trop court (6 caractères minimum)",
+  "@errorPasswordShort": {},
+
+  "errorLoginFailed": "Email ou mot de passe incorrect",
+  "@errorLoginFailed": {},
+
+  "errorSignupFailed": "Inscription échouée. Email déjà utilisé ?",
+  "@errorSignupFailed": {},
+
+  "errorGoogleFailed": "Connexion Google échouée",
+  "@errorGoogleFailed": {},
+
+  "onboardingTag1": "Trouvez votre logement",
+  "@onboardingTag1": {},
+
+  "onboardingTitle1": "Des milliers de biens\nà portée de main",
+  "@onboardingTitle1": {},
+
+  "onboardingSubtitle1": "Appartements, maisons, villas… explorez des annonces vérifiées partout en Afrique de l'Ouest.",
+  "@onboardingSubtitle1": {},
+
+  "onboardingTag2": "Réservation simple",
+  "@onboardingTag2": {},
+
+  "onboardingTitle2": "Réservez en quelques\nclics, partout",
+  "@onboardingTitle2": {},
+
+  "onboardingSubtitle2": "Choisissez vos dates, vos voyageurs et confirmez votre séjour en toute sécurité.",
+  "@onboardingSubtitle2": {},
+
+  "onboardingTag3": "Séjour sécurisé",
+  "@onboardingTag3": {},
+
+  "onboardingTitle3": "Hôtes vérifiés,\nséjours garantis",
+  "@onboardingTitle3": {},
+
+  "onboardingSubtitle3": "Chaque propriétaire est validé. Paiement sécurisé et support disponible 24h/24.",
+  "@onboardingSubtitle3": {}
+}

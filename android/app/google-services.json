@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "710396968816",
+    "project_id": "casaimo",
+    "storage_bucket": "casaimo.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:710396968816:android:4c87cd438cf34ade69d9b5",
+        "android_client_info": {
+          "package_name": "com.casaimo.casaimo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA2RP3Al_VUfTSA3o-sTG1D9orH3bN2RKo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

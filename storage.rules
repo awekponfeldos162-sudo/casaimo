@@ -1,0 +1,34 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ── Photos et vidéos des annonces ──────────────────────────────
+    // Lecture publique (les clients voient les photos)
+    // Écriture : uniquement l'hôte propriétaire du dossier
+    match /listings/{hostId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.auth.uid == hostId
+                   && request.resource.size < 100 * 1024 * 1024;  // 100 MB max
+      allow delete: if request.auth != null && request.auth.uid == hostId;
+    }
+
+    // ── Avatars utilisateurs ───────────────────────────────────────
+    match /avatars/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.size < 5 * 1024 * 1024;    // 5 MB max
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ── Logos entreprise (hôtes) ───────────────────────────────────
+    match /logos/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.size < 5 * 1024 * 1024;
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

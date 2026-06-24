@@ -1,0 +1,104 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Helpers ───────────────────────────────────────────────────
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isAuth() && request.auth.uid == uid;
+    }
+
+    function getUser() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isHost() {
+      return isAuth() && getUser().role in ['host', 'admin'];
+    }
+
+    function isAdmin() {
+      return isAuth() && getUser().role == 'admin';
+    }
+
+    // ─── users ─────────────────────────────────────────────────────
+    match /users/{userId} {
+      allow read: if isAuth();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ─── listings ──────────────────────────────────────────────────
+    match /listings/{listingId} {
+      allow read: if true; // public
+      allow create: if isHost() && request.resource.data.hostId == request.auth.uid;
+      allow update: if isAuth() && (
+        resource.data.hostId == request.auth.uid || isAdmin()
+      );
+      allow delete: if isAuth() && (
+        resource.data.hostId == request.auth.uid || isAdmin()
+      );
+    }
+
+    // ─── bookings ──────────────────────────────────────────────────
+    match /bookings/{bookingId} {
+      allow read: if isAuth() && (
+        resource.data.guestId == request.auth.uid ||
+        resource.data.hostId == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isAuth() && request.resource.data.guestId == request.auth.uid;
+      allow update: if isAuth() && (
+        resource.data.guestId == request.auth.uid ||
+        resource.data.hostId == request.auth.uid ||
+        isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // ─── messages (conversations) ───────────────────────────────────
+    match /messages/{conversationId} {
+      // Création : le document n'existe pas encore → on vérifie les données entrantes
+      allow create: if isAuth() &&
+        request.auth.uid in request.resource.data.participants;
+
+      // Lecture & mise à jour : le document existe → on vérifie les données existantes
+      allow read, update: if isAuth() &&
+        request.auth.uid in resource.data.participants;
+
+      allow delete: if false;
+
+      match /msgs/{msgId} {
+        allow read: if isAuth() &&
+          request.auth.uid in get(/databases/$(database)/documents/messages/$(conversationId)).data.participants;
+        allow create: if isAuth() &&
+          request.auth.uid in get(/databases/$(database)/documents/messages/$(conversationId)).data.participants &&
+          request.resource.data.senderId == request.auth.uid;
+        allow update: if isAuth() &&
+          request.auth.uid in get(/databases/$(database)/documents/messages/$(conversationId)).data.participants;
+        allow delete: if false;
+      }
+    }
+
+    // ─── reviews ───────────────────────────────────────────────────
+    match /reviews/{reviewId} {
+      allow read: if true; // public
+      allow create: if isAuth() && request.resource.data.guestId == request.auth.uid;
+      allow update: if isAuth() && resource.data.guestId == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+
+    // ─── notifications ─────────────────────────────────────────────
+    match /notifications/{notifId} {
+      allow read: if isAuth() && resource.data.userId == request.auth.uid;
+      allow create: if isAdmin();
+      allow update: if isAuth() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuth() && resource.data.userId == request.auth.uid;
+    }
+
+  }
+}
