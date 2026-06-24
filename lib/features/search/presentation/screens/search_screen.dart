@@ -115,11 +115,44 @@ class _FiltersSheet extends ConsumerStatefulWidget {
 
 class _FiltersSheetState extends ConsumerState<_FiltersSheet> {
   late SearchFilters _local;
+  late TextEditingController _minCtrl;
+  late TextEditingController _maxCtrl;
+
+  static const _presets = [
+    (label: '– 25 000', min: 0.0, max: 25000.0),
+    (label: '25k – 75k', min: 25000.0, max: 75000.0),
+    (label: '75k – 200k', min: 75000.0, max: 200000.0),
+    (label: '200k – 500k', min: 200000.0, max: 500000.0),
+    (label: '500k +', min: 500000.0, max: 9999999.0),
+  ];
 
   @override
   void initState() {
     super.initState();
     _local = ref.read(searchFiltersProvider);
+    _minCtrl = TextEditingController(text: _local.minPrice > 0 ? _local.minPrice.toInt().toString() : '');
+    _maxCtrl = TextEditingController(text: _local.maxPrice < 9999999 ? _local.maxPrice.toInt().toString() : '');
+  }
+
+  @override
+  void dispose() {
+    _minCtrl.dispose();
+    _maxCtrl.dispose();
+    super.dispose();
+  }
+
+  void _applyPreset(double min, double max) {
+    setState(() {
+      _local = _local.copyWith(minPrice: min, maxPrice: max);
+      _minCtrl.text = min > 0 ? min.toInt().toString() : '';
+      _maxCtrl.text = max < 9999999 ? max.toInt().toString() : '';
+    });
+  }
+
+  void _onPriceChanged() {
+    final min = double.tryParse(_minCtrl.text) ?? 0;
+    final max = double.tryParse(_maxCtrl.text) ?? 9999999;
+    setState(() => _local = _local.copyWith(minPrice: min, maxPrice: max < min ? min : max));
   }
 
   @override
@@ -146,18 +179,78 @@ class _FiltersSheetState extends ConsumerState<_FiltersSheet> {
           const Divider(),
           Expanded(
             child: ListView(controller: scrollCtrl, padding: const EdgeInsets.all(20), children: [
-              // Price range
+              // Prix
               Text('Budget / nuit (FCFA)', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 8),
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Text('${_local.minPrice.toInt()} FCFA', style: Theme.of(context).textTheme.bodySmall),
-                Text('${_local.maxPrice.toInt()} FCFA', style: Theme.of(context).textTheme.bodySmall),
+              const SizedBox(height: 12),
+              Row(children: [
+                Expanded(
+                  child: TextField(
+                    controller: _minCtrl,
+                    keyboardType: TextInputType.number,
+                    onChanged: (_) => _onPriceChanged(),
+                    decoration: InputDecoration(
+                      labelText: 'Min',
+                      hintText: '0',
+                      suffixText: 'FCFA',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Text('→', style: TextStyle(fontSize: 18, color: Colors.grey.shade400)),
+                ),
+                Expanded(
+                  child: TextField(
+                    controller: _maxCtrl,
+                    keyboardType: TextInputType.number,
+                    onChanged: (_) => _onPriceChanged(),
+                    decoration: InputDecoration(
+                      labelText: 'Max',
+                      hintText: 'Sans limite',
+                      suffixText: 'FCFA',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    ),
+                  ),
+                ),
               ]),
-              RangeSlider(
-                values: RangeValues(_local.minPrice, _local.maxPrice),
-                min: 0, max: 500000, divisions: 100,
-                activeColor: AppColors.primary,
-                onChanged: (v) => setState(() => _local = _local.copyWith(minPrice: v.start, maxPrice: v.end)),
+              const SizedBox(height: 10),
+              // Presets rapides
+              Wrap(
+                spacing: 8, runSpacing: 6,
+                children: _presets.map((p) {
+                  final isActive = _local.minPrice == p.min && _local.maxPrice == p.max;
+                  return GestureDetector(
+                    onTap: () => _applyPreset(p.min, p.max),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isActive ? AppColors.primary : Colors.transparent,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: isActive ? AppColors.primary : AppColors.border),
+                      ),
+                      child: Text(
+                        p.label,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                          color: isActive ? Colors.white : AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
               ),
               const SizedBox(height: 20),
 

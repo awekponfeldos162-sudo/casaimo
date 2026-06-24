@@ -22,9 +22,7 @@ class ListingDetailScreen extends ConsumerStatefulWidget {
   ConsumerState<ListingDetailScreen> createState() => _ListingDetailScreenState();
 }
 
-class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabCtrl;
+class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
   late PageController _pageCtrl;
   int _imageIndex = 0;
   bool _showFullDesc = false;
@@ -32,13 +30,11 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen>
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 4, vsync: this);
     _pageCtrl = PageController();
   }
 
   @override
   void dispose() {
-    _tabCtrl.dispose();
     _pageCtrl.dispose();
     super.dispose();
   }
@@ -232,62 +228,78 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen>
                 ]),
               ),
 
-              // Tabs
-              TabBar(
-                controller: _tabCtrl,
-                isScrollable: true,
-                labelColor: AppColors.primary,
-                unselectedLabelColor: AppColors.textSecondary,
-                indicatorColor: AppColors.primary,
-                tabs: const [Tab(text: 'Description'), Tab(text: 'Équipements'), Tab(text: 'Avis'), Tab(text: 'Politique')],
-              ),
-              SizedBox(
-                height: 190,
-                child: TabBarView(controller: _tabCtrl, children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(_showFullDesc ? listing.description : AppUtils.truncate(listing.description, 180), style: Theme.of(context).textTheme.bodyMedium),
-                      if (listing.description.length > 180)
-                        GestureDetector(
-                          onTap: () => setState(() => _showFullDesc = !_showFullDesc),
-                          child: Text(_showFullDesc ? 'Voir moins' : 'Lire la suite', style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600)),
+              // ── Description ──────────────────────────────────────────
+              if (listing.description.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Description', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 8),
+                    Text(
+                      _showFullDesc ? listing.description : AppUtils.truncate(listing.description, 200),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.55, color: AppColors.textSecondary),
+                    ),
+                    if (listing.description.length > 200) ...[
+                      const SizedBox(height: 6),
+                      GestureDetector(
+                        onTap: () => setState(() => _showFullDesc = !_showFullDesc),
+                        child: Text(
+                          _showFullDesc ? 'Voir moins ▲' : 'Voir plus ▼',
+                          style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13),
                         ),
-                    ]),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
-                    child: Wrap(spacing: 8, runSpacing: 8, children: listing.amenities.map((a) => Chip(
-                      label: Text(a, style: const TextStyle(fontSize: 12)),
-                      avatar: const Icon(Icons.check_circle_outline_rounded, size: 16, color: AppColors.primary),
-                      backgroundColor: AppColors.primaryContainer,
-                      side: BorderSide.none,
-                    )).toList()),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Row(children: [
-                        const Icon(Icons.star_rounded, color: AppColors.star, size: 36),
-                        const SizedBox(width: 8),
-                        Text(listing.avgRating.toStringAsFixed(1), style: Theme.of(context).textTheme.displaySmall),
-                        const SizedBox(width: 8),
-                        Text('/ 5 (${listing.reviewCount} avis)', style: Theme.of(context).textTheme.bodyMedium),
-                      ]),
-                      const SizedBox(height: 10),
-                      const Text('Connectez-vous pour voir les avis détaillés.', style: TextStyle(color: AppColors.textSecondary)),
-                    ]),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      _PolicyRow(icon: Icons.cancel_outlined, label: 'Annulation', value: listing.cancellationPolicy),
-                      const SizedBox(height: 10),
-                      _PolicyRow(icon: Icons.calendar_today_rounded, label: 'Séjour min', value: '${listing.minStay} nuit${listing.minStay > 1 ? 's' : ''}'),
-                      const SizedBox(height: 10),
-                      _PolicyRow(icon: Icons.calendar_month_rounded, label: 'Séjour max', value: '${listing.maxStay} nuits'),
-                    ]),
-                  ),
+                      ),
+                    ],
+                  ]),
+                ),
+
+              // ── Équipements ───────────────────────────────────────────
+              if (listing.amenities.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Équipements', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8, runSpacing: 8,
+                      children: listing.amenities.map((a) => Chip(
+                        label: Text(a, style: const TextStyle(fontSize: 12)),
+                        avatar: const Icon(Icons.check_circle_outline_rounded, size: 16, color: AppColors.primary),
+                        backgroundColor: AppColors.primaryContainer,
+                        side: BorderSide.none,
+                      )).toList(),
+                    ),
+                  ]),
+                ),
+
+              // ── Avis ──────────────────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Avis', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 10),
+                  Row(children: [
+                    const Icon(Icons.star_rounded, color: AppColors.star, size: 32),
+                    const SizedBox(width: 8),
+                    Text(listing.avgRating.toStringAsFixed(1), style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
+                    const SizedBox(width: 6),
+                    Text('/ 5  (${listing.reviewCount} avis)', style: Theme.of(context).textTheme.bodyMedium),
+                  ]),
+                  const SizedBox(height: 6),
+                  const Text('Connectez-vous pour voir les avis détaillés.', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                ]),
+              ),
+
+              // ── Politique ─────────────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Politique', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 10),
+                  _PolicyRow(icon: Icons.cancel_outlined, label: 'Annulation', value: listing.cancellationPolicy),
+                  const SizedBox(height: 10),
+                  _PolicyRow(icon: Icons.calendar_today_rounded, label: 'Séjour min', value: '${listing.minStay} nuit${listing.minStay > 1 ? 's' : ''}'),
+                  const SizedBox(height: 10),
+                  _PolicyRow(icon: Icons.calendar_month_rounded, label: 'Séjour max', value: '${listing.maxStay} nuits'),
                 ]),
               ),
             ]),
