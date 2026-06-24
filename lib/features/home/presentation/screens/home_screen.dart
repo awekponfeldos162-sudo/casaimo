@@ -1,12 +1,13 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../shared/widgets/cards/listing_card.dart';
-import '../../../../shared/widgets/inputs/search_bar_widget.dart';
+import '../../../../core/utils/app_utils.dart';
 import '../../../../shared/widgets/layout/section_header.dart';
 import '../../../../shared/widgets/layout/shimmer_loader.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../listing/data/models/listing_model.dart';
 import '../providers/home_provider.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -21,207 +22,483 @@ class HomeScreen extends ConsumerWidget {
     final selectedCat = ref.watch(selectedCategoryProvider);
     final featured = featuredAsync.valueOrNull ?? [];
     final nearby = nearbyAsync.valueOrNull ?? [];
+    final firstName = user?.name.split(' ').first ?? '';
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F6FA),
       body: CustomScrollView(
         slivers: [
-          SliverAppBar(
-            floating: false,
-            snap: false,
-            pinned: true,
-            elevation: 0,
-            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-            titleSpacing: 16,
-            title: const Text(
-              'CASAIMO',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w900,
-                color: AppColors.primary,
-                letterSpacing: 3,
-                fontFamily: 'Poppins',
-              ),
+
+          // ── Header vert ──────────────────────────────────────────────
+          SliverToBoxAdapter(
+            child: _HomeHeader(
+              firstName: firstName,
+              avatarUrl: user?.avatarUrl ?? '',
+              userName: user?.name ?? '',
+              onNotif: () => context.go('/notifications'),
+              onSearch: () => context.go('/search'),
+              onFilter: () => context.go('/search'),
             ),
-            actions: [
-              Stack(
-                children: [
-                  IconButton(
-                    onPressed: () => context.go('/notifications'),
-                    icon: const Icon(Icons.notifications_none_rounded),
-                  ),
-                  Positioned(
-                    right: 8, top: 8,
-                    child: Container(
-                      width: 8, height: 8,
-                      decoration: const BoxDecoration(
-                        color: AppColors.error,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              if (user != null) ...[
-                CircleAvatar(
-                  radius: 18,
-                  backgroundColor: AppColors.primaryContainer,
-                  backgroundImage: user.avatarUrl.isNotEmpty
-                      ? NetworkImage(user.avatarUrl)
-                      : null,
-                  child: user.avatarUrl.isEmpty
-                      ? Text(
-                          user.name.isNotEmpty
-                              ? user.name[0].toUpperCase()
-                              : 'U',
-                          style: const TextStyle(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        )
-                      : null,
-                ),
-                const SizedBox(width: 12),
-              ],
-            ],
           ),
 
+          // ── Catégories ───────────────────────────────────────────────
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                // Location row
-                Row(children: [
-                  const Icon(Icons.location_on_rounded, size: 14, color: AppColors.primary),
-                  const SizedBox(width: 4),
-                  Text('Cotonou, Bénin', style: Theme.of(context).textTheme.bodySmall),
-                  const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: AppColors.textSecondary),
-                ]),
-                const SizedBox(height: 12),
-
-                // Search bar
-                SearchBarWidget(
-                  hint: 'Rechercher un bien...',
-                  readOnly: true,
-                  onTap: () => context.go('/search'),
-                  onFilter: () => context.go('/search'),
-                ),
-                const SizedBox(height: 20),
-
-                // Categories
-                SizedBox(
-                  height: 40,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: categories.length,
-                    separatorBuilder: (context, index) => const SizedBox(width: 8),
-                    itemBuilder: (_, i) {
-                      final cat = categories[i];
-                      final label = cat['label'] as String;
-                      final isSelected = selectedCat == label;
-                      return GestureDetector(
-                        onTap: () =>
-                            ref.read(selectedCategoryProvider.notifier).state = label,
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? AppColors.primary
-                                : Theme.of(context).colorScheme.surface,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: isSelected ? AppColors.primary : AppColors.border,
-                            ),
-                          ),
-                          child: Text(
-                            '${cat['icon']} $label',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                              color: isSelected ? Colors.white : AppColors.textPrimary,
-                            ),
+              padding: const EdgeInsets.fromLTRB(16, 20, 0, 0),
+              child: SizedBox(
+                height: 38,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: categories.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 8),
+                  itemBuilder: (_, i) {
+                    final cat = categories[i];
+                    final label = cat['label'] as String;
+                    final isSelected = selectedCat == label;
+                    return GestureDetector(
+                      onTap: () => ref.read(selectedCategoryProvider.notifier).state = label,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isSelected ? AppColors.primary : Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: isSelected ? AppColors.primary : AppColors.border),
+                          boxShadow: isSelected
+                              ? [BoxShadow(color: AppColors.primary.withValues(alpha: 0.28), blurRadius: 8, offset: const Offset(0, 3))]
+                              : [],
+                        ),
+                        child: Text(
+                          '${cat['icon']} $label',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            color: isSelected ? Colors.white : AppColors.textPrimary,
                           ),
                         ),
-                      );
-                    },
-                  ),
+                      ),
+                    );
+                  },
                 ),
-                const SizedBox(height: 24),
-
-                SectionHeader(
-                  title: 'Biens à proximité',
-                  actionLabel: 'Voir plus',
-                  onAction: () => context.go('/search'),
-                ),
-                const SizedBox(height: 14),
-              ]),
+              ),
             ),
           ),
 
-          // Featured horizontal scroll
-          SliverToBoxAdapter(
-            child: SizedBox(
-              height: 240,
-              child: featured.isEmpty
-                  ? ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: 3,
-                      itemBuilder: (context, index) => const ListingCardSkeleton(),
-                    )
-                  : ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: featured.length,
-                      itemBuilder: (_, i) {
-                        final l = featured[i];
-                        return ListingCard(
-                          listing: l,
-                          isFavorite:
-                              ref.watch(authProvider)?.favoriteIds.contains(l.id) ?? false,
-                          onTap: () => context.push('/listing/${l.id}'),
-                          onFavorite: () =>
-                              ref.read(authProvider.notifier).toggleFavorite(l.id),
-                        );
-                      },
-                    ),
-            ),
-          ),
-
+          // ── En vedette ───────────────────────────────────────────────
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+              padding: const EdgeInsets.fromLTRB(16, 22, 16, 12),
               child: SectionHeader(
-                title: 'Recommandés',
-                actionLabel: 'Voir plus',
+                title: 'En vedette',
+                actionLabel: 'Voir tout',
                 onAction: () => context.go('/search'),
               ),
             ),
           ),
 
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (_, i) {
-                  final l = nearby[i];
-                  return ListingCard(
-                    listing: l,
-                    isHorizontal: true,
-                    isFavorite:
-                        ref.watch(authProvider)?.favoriteIds.contains(l.id) ?? false,
-                    onTap: () => context.push('/listing/${l.id}'),
-                    onFavorite: () =>
-                        ref.read(authProvider.notifier).toggleFavorite(l.id),
-                  );
-                },
-                childCount: nearby.length,
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: 220,
+              child: featured.isEmpty
+                  ? ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: 3,
+                      itemBuilder: (_, _) => const ListingCardSkeleton(),
+                    )
+                  : ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                      itemCount: featured.length,
+                      itemBuilder: (_, i) => _FeaturedCard(
+                        listing: featured[i],
+                        isFavorite: ref.watch(authProvider)?.favoriteIds.contains(featured[i].id) ?? false,
+                        onTap: () => context.push('/listing/${featured[i].id}'),
+                        onFavorite: () => ref.read(authProvider.notifier).toggleFavorite(featured[i].id),
+                      ),
+                    ),
+            ),
+          ),
+
+          // ── Recommandés ──────────────────────────────────────────────
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+              child: SectionHeader(
+                title: 'Recommandés',
+                actionLabel: 'Voir tout',
+                onAction: () => context.go('/search'),
               ),
             ),
           ),
 
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+          if (nearby.isEmpty)
+            SliverToBoxAdapter(
+              child: Column(
+                children: List.generate(3, (_) => const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: ListingCardSkeleton(),
+                )),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (_, i) => _RecommendedCard(
+                    listing: nearby[i],
+                    isFavorite: ref.watch(authProvider)?.favoriteIds.contains(nearby[i].id) ?? false,
+                    onTap: () => context.push('/listing/${nearby[i].id}'),
+                    onFavorite: () => ref.read(authProvider.notifier).toggleFavorite(nearby[i].id),
+                  ),
+                  childCount: nearby.length,
+                ),
+              ),
+            ),
+
+          const SliverToBoxAdapter(child: SizedBox(height: 30)),
         ],
+      ),
+    );
+  }
+}
+
+// ── Header vert ──────────────────────────────────────────────────────────────
+
+class _HomeHeader extends StatelessWidget {
+  final String firstName;
+  final String avatarUrl;
+  final String userName;
+  final VoidCallback onNotif;
+  final VoidCallback onSearch;
+  final VoidCallback onFilter;
+
+  const _HomeHeader({
+    required this.firstName,
+    required this.avatarUrl,
+    required this.userName,
+    required this.onNotif,
+    required this.onSearch,
+    required this.onFilter,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = userName.isNotEmpty ? userName[0].toUpperCase() : 'U';
+
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF1B5E20), Color(0xFF2E7D32), Color(0xFF43A047)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+            // Top row : location | notif + avatar
+            Row(children: [
+              Row(children: [
+                const Icon(Icons.location_on_rounded, color: Colors.white70, size: 16),
+                const SizedBox(width: 4),
+                const Text('Cotonou, Bénin', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
+                const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white70, size: 18),
+              ]),
+              const Spacer(),
+              GestureDetector(
+                onTap: onNotif,
+                child: Stack(children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.15), shape: BoxShape.circle),
+                    child: const Icon(Icons.notifications_none_rounded, color: Colors.white, size: 20),
+                  ),
+                  Positioned(
+                    right: 6, top: 6,
+                    child: Container(width: 7, height: 7, decoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle)),
+                  ),
+                ]),
+              ),
+              const SizedBox(width: 10),
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: Colors.white.withValues(alpha: 0.25),
+                backgroundImage: avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+                child: avatarUrl.isEmpty
+                    ? Text(initial, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14))
+                    : null,
+              ),
+            ]),
+
+            const SizedBox(height: 18),
+
+            // Greeting + titre
+            if (firstName.isNotEmpty) ...[
+              Text('Bonjour, $firstName 👋', style: const TextStyle(color: Colors.white70, fontSize: 13)),
+              const SizedBox(height: 4),
+            ],
+            const Text(
+              'Trouvez votre\nlogement idéal',
+              style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800, height: 1.25),
+            ),
+
+            const SizedBox(height: 18),
+
+            // Search bar
+            GestureDetector(
+              onTap: onSearch,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 14, offset: const Offset(0, 4))],
+                ),
+                child: Row(children: [
+                  Icon(Icons.search_rounded, color: Colors.grey.shade400, size: 22),
+                  const SizedBox(width: 10),
+                  Text('Rechercher un bien...', style: TextStyle(color: Colors.grey.shade400, fontSize: 14)),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: onFilter,
+                    child: Container(
+                      padding: const EdgeInsets.all(7),
+                      decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(10)),
+                      child: const Icon(Icons.tune_rounded, color: Colors.white, size: 16),
+                    ),
+                  ),
+                ]),
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Grande carte En vedette ───────────────────────────────────────────────────
+
+class _FeaturedCard extends StatelessWidget {
+  final ListingModel listing;
+  final bool isFavorite;
+  final VoidCallback onTap;
+  final VoidCallback onFavorite;
+
+  const _FeaturedCard({
+    required this.listing,
+    required this.isFavorite,
+    required this.onTap,
+    required this.onFavorite,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 255,
+        margin: const EdgeInsets.only(right: 14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.14), blurRadius: 14, offset: const Offset(0, 5))],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Stack(fit: StackFit.expand, children: [
+
+            // Photo
+            listing.mainImage.isNotEmpty
+                ? CachedNetworkImage(imageUrl: listing.mainImage, fit: BoxFit.cover)
+                : Container(color: AppColors.surfaceVariant, child: const Icon(Icons.home_rounded, size: 50, color: AppColors.textHint)),
+
+            // Gradient overlay
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.transparent, Colors.black.withValues(alpha: 0.75)],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  stops: const [0.35, 1.0],
+                ),
+              ),
+            ),
+
+            // Badge type haut gauche
+            Positioned(
+              top: 12, left: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(8)),
+                child: Text(listing.type, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+              ),
+            ),
+
+            // Bouton favori haut droite
+            Positioned(
+              top: 10, right: 10,
+              child: GestureDetector(
+                onTap: onFavorite,
+                child: Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                  child: Icon(
+                    isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                    size: 16,
+                    color: isFavorite ? Colors.red : AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ),
+
+            // Info bas
+            Positioned(
+              bottom: 0, left: 0, right: 0,
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(
+                    listing.title,
+                    style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700),
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Row(children: [
+                    const Icon(Icons.location_on_rounded, color: Colors.white60, size: 12),
+                    const SizedBox(width: 3),
+                    Expanded(child: Text(listing.city, style: const TextStyle(color: Colors.white70, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                  ]),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    const Icon(Icons.star_rounded, color: AppColors.star, size: 14),
+                    const SizedBox(width: 3),
+                    Text(
+                      '${listing.avgRating.toStringAsFixed(1)} (${listing.reviewCount})',
+                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(10)),
+                      child: Text(
+                        '${AppUtils.formatPrice(listing.pricePerNight)}/nuit',
+                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ]),
+                ]),
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Carte recommandée ─────────────────────────────────────────────────────────
+
+class _RecommendedCard extends StatelessWidget {
+  final ListingModel listing;
+  final bool isFavorite;
+  final VoidCallback onTap;
+  final VoidCallback onFavorite;
+
+  const _RecommendedCard({
+    required this.listing,
+    required this.isFavorite,
+    required this.onTap,
+    required this.onFavorite,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10, offset: const Offset(0, 3))],
+        ),
+        child: Row(children: [
+
+          // Image
+          ClipRRect(
+            borderRadius: const BorderRadius.horizontal(left: Radius.circular(18)),
+            child: SizedBox(
+              width: 118, height: 108,
+              child: Stack(fit: StackFit.expand, children: [
+                listing.mainImage.isNotEmpty
+                    ? CachedNetworkImage(imageUrl: listing.mainImage, fit: BoxFit.cover)
+                    : Container(color: AppColors.surfaceVariant, child: const Icon(Icons.home_rounded, color: AppColors.textHint, size: 32)),
+                Positioned(
+                  bottom: 8, left: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(6)),
+                    child: Text(listing.type, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ]),
+            ),
+          ),
+
+          // Infos
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(
+                  listing.title,
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                  maxLines: 2, overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Row(children: [
+                  const Icon(Icons.location_on_rounded, size: 11, color: AppColors.textSecondary),
+                  const SizedBox(width: 2),
+                  Expanded(child: Text(listing.city, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary), overflow: TextOverflow.ellipsis)),
+                ]),
+                const SizedBox(height: 8),
+                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(AppUtils.formatPrice(listing.pricePerNight), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.primary)),
+                    const Text('/nuit', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+                  ]),
+                  Row(children: [
+                    const Icon(Icons.star_rounded, size: 13, color: AppColors.star),
+                    const SizedBox(width: 2),
+                    Text(listing.avgRating.toStringAsFixed(1), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                  ]),
+                ]),
+              ]),
+            ),
+          ),
+
+          // Favori
+          GestureDetector(
+            onTap: onFavorite,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 10),
+              child: Icon(
+                isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                color: isFavorite ? Colors.red : AppColors.border,
+                size: 20,
+              ),
+            ),
+          ),
+        ]),
       ),
     );
   }

@@ -25,6 +25,7 @@ class ListingDetailScreen extends ConsumerStatefulWidget {
 class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabCtrl;
+  late PageController _pageCtrl;
   int _imageIndex = 0;
   bool _showFullDesc = false;
 
@@ -32,11 +33,13 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen>
   void initState() {
     super.initState();
     _tabCtrl = TabController(length: 4, vsync: this);
+    _pageCtrl = PageController();
   }
 
   @override
   void dispose() {
     _tabCtrl.dispose();
+    _pageCtrl.dispose();
     super.dispose();
   }
 
@@ -99,6 +102,7 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen>
               background: listing.mediaUrls.isEmpty
                   ? Container(color: AppColors.surfaceVariant, child: const Icon(Icons.home_rounded, size: 80, color: AppColors.textHint))
                   : PageView.builder(
+                      controller: _pageCtrl,
                       itemCount: listing.mediaUrls.length + (listing.hasVideo ? 1 : 0),
                       onPageChanged: (i) => setState(() => _imageIndex = i),
                       itemBuilder: (context, i) {
@@ -122,22 +126,52 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen>
 
           SliverToBoxAdapter(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              // Image indicators
+              // Bande miniatures
               if (listing.mediaUrls.length > 1)
                 Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(listing.mediaUrls.length + (listing.hasVideo ? 1 : 0), (i) => AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      margin: const EdgeInsets.symmetric(horizontal: 3),
-                      width: i == _imageIndex ? 20 : 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: i == _imageIndex ? AppColors.primary : AppColors.border,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    )),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: SizedBox(
+                    height: 62,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: listing.mediaUrls.length + (listing.hasVideo ? 1 : 0),
+                      separatorBuilder: (_, _) => const SizedBox(width: 8),
+                      itemBuilder: (_, i) {
+                        final isActive = i == _imageIndex;
+                        final url = (listing.hasVideo && i == 0)
+                            ? listing.mainImage
+                            : listing.mediaUrls[i - (listing.hasVideo ? 1 : 0)];
+                        return GestureDetector(
+                          onTap: () => _pageCtrl.animateToPage(i,
+                              duration: const Duration(milliseconds: 300), curve: Curves.easeInOut),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            width: 62, height: 62,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isActive ? AppColors.primary : Colors.transparent,
+                                width: 2.5,
+                              ),
+                              boxShadow: isActive
+                                  ? [BoxShadow(color: AppColors.primary.withValues(alpha: 0.35), blurRadius: 6)]
+                                  : [],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Stack(fit: StackFit.expand, children: [
+                                CachedNetworkImage(imageUrl: url, fit: BoxFit.cover),
+                                if (listing.hasVideo && i == 0)
+                                  Container(
+                                    color: Colors.black26,
+                                    child: const Center(child: Icon(Icons.play_arrow_rounded, color: Colors.white, size: 22)),
+                                  ),
+                              ]),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ),
 
