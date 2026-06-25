@@ -22,6 +22,18 @@ final categoryListingsProvider = StreamProvider<List<ListingModel>>((ref) {
   });
 });
 
+final villasProvider = StreamProvider<List<ListingModel>>((ref) {
+  return ref.watch(listingRepositoryProvider).watchAll().map(
+    (listings) => listings.where((l) => l.type == 'Villa' || l.type == 'Maison').take(8).toList(),
+  );
+});
+
+final appsStudiosProvider = StreamProvider<List<ListingModel>>((ref) {
+  return ref.watch(listingRepositoryProvider).watchAll().map(
+    (listings) => listings.where((l) => l.type == 'Appartement' || l.type == 'Studio').take(8).toList(),
+  );
+});
+
 final recentlyViewedProvider = StateProvider<List<ListingModel>>((ref) => []);
 
 final selectedCategoryProvider = StateProvider<String>((ref) => 'Tous');

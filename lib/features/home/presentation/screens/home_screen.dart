@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +9,7 @@ import '../../../../shared/widgets/layout/section_header.dart';
 import '../../../../shared/widgets/layout/shimmer_loader.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../listing/data/models/listing_model.dart';
+import '../../../search/presentation/providers/search_provider.dart';
 import '../providers/home_provider.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -18,17 +20,20 @@ class HomeScreen extends ConsumerWidget {
     final user = ref.watch(currentUserProvider);
     final featuredAsync = ref.watch(featuredListingsProvider);
     final nearbyAsync = ref.watch(nearbyListingsProvider);
+    final villasAsync = ref.watch(villasProvider);
+    final appsAsync = ref.watch(appsStudiosProvider);
     final categories = ref.watch(categoriesProvider);
     final selectedCat = ref.watch(selectedCategoryProvider);
     final featured = featuredAsync.valueOrNull ?? [];
     final nearby = nearbyAsync.valueOrNull ?? [];
+    final villas = villasAsync.valueOrNull ?? [];
+    final apps = appsAsync.valueOrNull ?? [];
     final firstName = user?.name.split(' ').first ?? '';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
       body: CustomScrollView(
         slivers: [
-
           // ── Header vert ──────────────────────────────────────────────
           SliverToBoxAdapter(
             child: _HomeHeader(
@@ -56,24 +61,45 @@ class HomeScreen extends ConsumerWidget {
                     final label = cat['label'] as String;
                     final isSelected = selectedCat == label;
                     return GestureDetector(
-                      onTap: () => ref.read(selectedCategoryProvider.notifier).state = label,
+                      onTap: () =>
+                          ref.read(selectedCategoryProvider.notifier).state =
+                              label,
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           color: isSelected ? AppColors.primary : Colors.white,
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: isSelected ? AppColors.primary : AppColors.border),
+                          border: Border.all(
+                            color: isSelected
+                                ? AppColors.primary
+                                : AppColors.border,
+                          ),
                           boxShadow: isSelected
-                              ? [BoxShadow(color: AppColors.primary.withValues(alpha: 0.28), blurRadius: 8, offset: const Offset(0, 3))]
+                              ? [
+                                  BoxShadow(
+                                    color: AppColors.primary.withValues(
+                                      alpha: 0.28,
+                                    ),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ]
                               : [],
                         ),
                         child: Text(
                           '${cat['icon']} $label',
                           style: TextStyle(
                             fontSize: 12,
-                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                            color: isSelected ? Colors.white : AppColors.textPrimary,
+                            fontWeight: isSelected
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            color: isSelected
+                                ? Colors.white
+                                : AppColors.textPrimary,
                           ),
                         ),
                       ),
@@ -112,9 +138,16 @@ class HomeScreen extends ConsumerWidget {
                       itemCount: featured.length,
                       itemBuilder: (_, i) => _FeaturedCard(
                         listing: featured[i],
-                        isFavorite: ref.watch(authProvider)?.favoriteIds.contains(featured[i].id) ?? false,
+                        isFavorite:
+                            ref
+                                .watch(authProvider)
+                                ?.favoriteIds
+                                .contains(featured[i].id) ??
+                            false,
                         onTap: () => context.push('/listing/${featured[i].id}'),
-                        onFavorite: () => ref.read(authProvider.notifier).toggleFavorite(featured[i].id),
+                        onFavorite: () => ref
+                            .read(authProvider.notifier)
+                            .toggleFavorite(featured[i].id),
                       ),
                     ),
             ),
@@ -131,33 +164,107 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
           ),
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: 220,
+              child: nearby.isEmpty
+                  ? ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: 3,
+                      itemBuilder: (_, _) => const ListingCardSkeleton(),
+                    )
+                  : ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                      itemCount: nearby.length,
+                      itemBuilder: (_, i) => _FeaturedCard(
+                        listing: nearby[i],
+                        isFavorite: ref.watch(authProvider)?.favoriteIds.contains(nearby[i].id) ?? false,
+                        onTap: () => context.push('/listing/${nearby[i].id}'),
+                        onFavorite: () => ref.read(authProvider.notifier).toggleFavorite(nearby[i].id),
+                      ),
+                    ),
+            ),
+          ),
 
-          if (nearby.isEmpty)
-            SliverToBoxAdapter(
-              child: Column(
-                children: List.generate(3, (_) => const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
-                  child: ListingCardSkeleton(),
-                )),
-              ),
-            )
-          else
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (_, i) => _RecommendedCard(
-                    listing: nearby[i],
-                    isFavorite: ref.watch(authProvider)?.favoriteIds.contains(nearby[i].id) ?? false,
-                    onTap: () => context.push('/listing/${nearby[i].id}'),
-                    onFavorite: () => ref.read(authProvider.notifier).toggleFavorite(nearby[i].id),
-                  ),
-                  childCount: nearby.length,
-                ),
+          // ── Villas & Maisons ─────────────────────────────────────────
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+              child: SectionHeader(
+                title: 'Villas & Maisons',
+                actionLabel: 'Voir tout',
+                onAction: () {
+                  ref.read(searchFiltersProvider.notifier).update((s) => s.copyWith(type: 'Villa'));
+                  context.go('/search/results', extra: {'query': 'Villa'});
+                },
               ),
             ),
+          ),
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: 220,
+              child: villas.isEmpty
+                  ? ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: 3,
+                      itemBuilder: (_, _) => const ListingCardSkeleton(),
+                    )
+                  : ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                      itemCount: villas.length,
+                      itemBuilder: (_, i) => _FeaturedCard(
+                        listing: villas[i],
+                        isFavorite: ref.watch(authProvider)?.favoriteIds.contains(villas[i].id) ?? false,
+                        onTap: () => context.push('/listing/${villas[i].id}'),
+                        onFavorite: () => ref.read(authProvider.notifier).toggleFavorite(villas[i].id),
+                      ),
+                    ),
+            ),
+          ),
 
-          const SliverToBoxAdapter(child: SizedBox(height: 30)),
+          // ── Appartements & Studios ────────────────────────────────────
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+              child: SectionHeader(
+                title: 'Appartements & Studios',
+                actionLabel: 'Voir tout',
+                onAction: () {
+                  ref.read(searchFiltersProvider.notifier).update((s) => s.copyWith(type: 'Appartement'));
+                  context.go('/search/results', extra: {'query': 'Appartement'});
+                },
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: 220,
+              child: apps.isEmpty
+                  ? ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: 3,
+                      itemBuilder: (_, _) => const ListingCardSkeleton(),
+                    )
+                  : ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                      itemCount: apps.length,
+                      itemBuilder: (_, i) => _FeaturedCard(
+                        listing: apps[i],
+                        isFavorite: ref.watch(authProvider)?.favoriteIds.contains(apps[i].id) ?? false,
+                        onTap: () => context.push('/listing/${apps[i].id}'),
+                        onFavorite: () => ref.read(authProvider.notifier).toggleFavorite(apps[i].id),
+                      ),
+                    ),
+            ),
+          ),
+
+          const SliverToBoxAdapter(child: SizedBox(height: 40)),
         ],
       ),
     );
@@ -203,83 +310,159 @@ class _HomeHeader extends StatelessWidget {
         bottom: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-
-            // Top row : location | notif + avatar
-            Row(children: [
-              Row(children: [
-                const Icon(Icons.location_on_rounded, color: Colors.white70, size: 16),
-                const SizedBox(width: 4),
-                const Text('Cotonou, Bénin', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
-                const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white70, size: 18),
-              ]),
-              const Spacer(),
-              GestureDetector(
-                onTap: onNotif,
-                child: Stack(children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.15), shape: BoxShape.circle),
-                    child: const Icon(Icons.notifications_none_rounded, color: Colors.white, size: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Top row : location | notif + avatar
+              Row(
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.location_on_rounded,
+                        color: Colors.white70,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 4),
+                      const Text(
+                        'Cotonou, Bénin',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: Colors.white70,
+                        size: 18,
+                      ),
+                    ],
                   ),
-                  Positioned(
-                    right: 6, top: 6,
-                    child: Container(width: 7, height: 7, decoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle)),
-                  ),
-                ]),
-              ),
-              const SizedBox(width: 10),
-              CircleAvatar(
-                radius: 18,
-                backgroundColor: Colors.white.withValues(alpha: 0.25),
-                backgroundImage: avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
-                child: avatarUrl.isEmpty
-                    ? Text(initial, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14))
-                    : null,
-              ),
-            ]),
-
-            const SizedBox(height: 18),
-
-            // Greeting + titre
-            if (firstName.isNotEmpty) ...[
-              Text('Bonjour, $firstName 👋', style: const TextStyle(color: Colors.white70, fontSize: 13)),
-              const SizedBox(height: 4),
-            ],
-            const Text(
-              'Trouvez votre\nlogement idéal',
-              style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800, height: 1.25),
-            ),
-
-            const SizedBox(height: 18),
-
-            // Search bar
-            GestureDetector(
-              onTap: onSearch,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 14, offset: const Offset(0, 4))],
-                ),
-                child: Row(children: [
-                  Icon(Icons.search_rounded, color: Colors.grey.shade400, size: 22),
-                  const SizedBox(width: 10),
-                  Text('Rechercher un bien...', style: TextStyle(color: Colors.grey.shade400, fontSize: 14)),
                   const Spacer(),
                   GestureDetector(
-                    onTap: onFilter,
-                    child: Container(
-                      padding: const EdgeInsets.all(7),
-                      decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(10)),
-                      child: const Icon(Icons.tune_rounded, color: Colors.white, size: 16),
+                    onTap: onNotif,
+                    child: Stack(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.notifications_none_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                        Positioned(
+                          right: 6,
+                          top: 6,
+                          child: Container(
+                            width: 7,
+                            height: 7,
+                            decoration: const BoxDecoration(
+                              color: Colors.redAccent,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ]),
+                  const SizedBox(width: 10),
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundColor: Colors.white.withValues(alpha: 0.25),
+                    backgroundImage: avatarUrl.isNotEmpty
+                        ? NetworkImage(avatarUrl)
+                        : null,
+                    child: avatarUrl.isEmpty
+                        ? Text(
+                            initial,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                            ),
+                          )
+                        : null,
+                  ),
+                ],
               ),
-            ),
-          ]),
+
+              const SizedBox(height: 18),
+
+              // Greeting + titre
+              if (firstName.isNotEmpty) ...[
+                Text(
+                  'Bonjour, $firstName 👋',
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+                const SizedBox(height: 4),
+              ],
+              const Text(
+                'Trouvez votre\nlogement idéal',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  height: 1.25,
+                ),
+              ),
+
+              const SizedBox(height: 18),
+
+              // Search bar
+              GestureDetector(
+                onTap: onSearch,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 14,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.search_rounded,
+                        color: Colors.grey.shade400,
+                        size: 22,
+                      ),
+                      const SizedBox(width: 10),
+                      const Expanded(child: _AnimatedSearchHint()),
+                      GestureDetector(
+                        onTap: onFilter,
+                        child: Container(
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.tune_rounded,
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -310,195 +493,243 @@ class _FeaturedCard extends StatelessWidget {
         margin: const EdgeInsets.only(right: 14),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.14), blurRadius: 14, offset: const Offset(0, 5))],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.14),
+              blurRadius: 14,
+              offset: const Offset(0, 5),
+            ),
+          ],
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(20),
-          child: Stack(fit: StackFit.expand, children: [
-
-            // Photo
-            listing.mainImage.isNotEmpty
-                ? CachedNetworkImage(imageUrl: listing.mainImage, fit: BoxFit.cover)
-                : Container(color: AppColors.surfaceVariant, child: const Icon(Icons.home_rounded, size: 50, color: AppColors.textHint)),
-
-            // Gradient overlay
-            DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.transparent, Colors.black.withValues(alpha: 0.75)],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  stops: const [0.35, 1.0],
-                ),
-              ),
-            ),
-
-            // Badge type haut gauche
-            Positioned(
-              top: 12, left: 12,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(8)),
-                child: Text(listing.type, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
-              ),
-            ),
-
-            // Bouton favori haut droite
-            Positioned(
-              top: 10, right: 10,
-              child: GestureDetector(
-                onTap: onFavorite,
-                child: Container(
-                  padding: const EdgeInsets.all(7),
-                  decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                  child: Icon(
-                    isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                    size: 16,
-                    color: isFavorite ? Colors.red : AppColors.textSecondary,
-                  ),
-                ),
-              ),
-            ),
-
-            // Info bas
-            Positioned(
-              bottom: 0, left: 0, right: 0,
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(
-                    listing.title,
-                    style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700),
-                    maxLines: 1, overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Row(children: [
-                    const Icon(Icons.location_on_rounded, color: Colors.white60, size: 12),
-                    const SizedBox(width: 3),
-                    Expanded(child: Text(listing.city, style: const TextStyle(color: Colors.white70, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                  ]),
-                  const SizedBox(height: 8),
-                  Row(children: [
-                    const Icon(Icons.star_rounded, color: AppColors.star, size: 14),
-                    const SizedBox(width: 3),
-                    Text(
-                      '${listing.avgRating.toStringAsFixed(1)} (${listing.reviewCount})',
-                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(10)),
-                      child: Text(
-                        '${AppUtils.formatPrice(listing.pricePerNight)}/nuit',
-                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Photo
+              listing.mainImage.isNotEmpty
+                  ? CachedNetworkImage(
+                      imageUrl: listing.mainImage,
+                      fit: BoxFit.cover,
+                    )
+                  : Container(
+                      color: AppColors.surfaceVariant,
+                      child: const Icon(
+                        Icons.home_rounded,
+                        size: 50,
+                        color: AppColors.textHint,
                       ),
                     ),
-                  ]),
-                ]),
+
+              // Gradient overlay
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.75),
+                    ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    stops: const [0.35, 1.0],
+                  ),
+                ),
               ),
-            ),
-          ]),
+
+              // Badge type haut gauche
+              Positioned(
+                top: 12,
+                left: 12,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    listing.type,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+
+              // Bouton favori haut droite
+              Positioned(
+                top: 10,
+                right: 10,
+                child: GestureDetector(
+                  onTap: onFavorite,
+                  child: Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      isFavorite
+                          ? Icons.favorite_rounded
+                          : Icons.favorite_border_rounded,
+                      size: 16,
+                      color: isFavorite ? Colors.red : AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ),
+
+              // Info bas
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        listing.title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.location_on_rounded,
+                            color: Colors.white60,
+                            size: 12,
+                          ),
+                          const SizedBox(width: 3),
+                          Expanded(
+                            child: Text(
+                              listing.city,
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 11,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.star_rounded,
+                            color: AppColors.star,
+                            size: 14,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            '${listing.avgRating.toStringAsFixed(1)} (${listing.reviewCount})',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '${AppUtils.formatPrice(listing.pricePerNight)}/nuit',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-// ── Carte recommandée ─────────────────────────────────────────────────────────
+// ── Barre de recherche animée ─────────────────────────────────────────────────
 
-class _RecommendedCard extends StatelessWidget {
-  final ListingModel listing;
-  final bool isFavorite;
-  final VoidCallback onTap;
-  final VoidCallback onFavorite;
+class _AnimatedSearchHint extends StatefulWidget {
+  const _AnimatedSearchHint();
 
-  const _RecommendedCard({
-    required this.listing,
-    required this.isFavorite,
-    required this.onTap,
-    required this.onFavorite,
-  });
+  @override
+  State<_AnimatedSearchHint> createState() => _AnimatedSearchHintState();
+}
+
+class _AnimatedSearchHintState extends State<_AnimatedSearchHint> {
+  static const _hints = [
+    'Trouvez rapidement les appartements...',
+    'Budget 5000 - 9999999 FCFA...',
+    'où que vous soyez vous pouvez trouver...',
+    'Hôtel proche de vous ...',
+    'Studio meublé à Cotonou...',
+    'Maison à votre budget...',
+  ];
+
+  int _index = 0;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 3), (_) {
+      setState(() => _index = (_index + 1) % _hints.length);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10, offset: const Offset(0, 3))],
-        ),
-        child: Row(children: [
-
-          // Image
-          ClipRRect(
-            borderRadius: const BorderRadius.horizontal(left: Radius.circular(18)),
-            child: SizedBox(
-              width: 118, height: 108,
-              child: Stack(fit: StackFit.expand, children: [
-                listing.mainImage.isNotEmpty
-                    ? CachedNetworkImage(imageUrl: listing.mainImage, fit: BoxFit.cover)
-                    : Container(color: AppColors.surfaceVariant, child: const Icon(Icons.home_rounded, color: AppColors.textHint, size: 32)),
-                Positioned(
-                  bottom: 8, left: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                    decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(6)),
-                    child: Text(listing.type, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700)),
-                  ),
-                ),
-              ]),
-            ),
-          ),
-
-          // Infos
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(
-                  listing.title,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                  maxLines: 2, overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Row(children: [
-                  const Icon(Icons.location_on_rounded, size: 11, color: AppColors.textSecondary),
-                  const SizedBox(width: 2),
-                  Expanded(child: Text(listing.city, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary), overflow: TextOverflow.ellipsis)),
-                ]),
-                const SizedBox(height: 8),
-                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(AppUtils.formatPrice(listing.pricePerNight), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.primary)),
-                    const Text('/nuit', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
-                  ]),
-                  Row(children: [
-                    const Icon(Icons.star_rounded, size: 13, color: AppColors.star),
-                    const SizedBox(width: 2),
-                    Text(listing.avgRating.toStringAsFixed(1), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-                  ]),
-                ]),
-              ]),
-            ),
-          ),
-
-          // Favori
-          GestureDetector(
-            onTap: onFavorite,
-            child: Padding(
-              padding: const EdgeInsets.only(right: 10),
-              child: Icon(
-                isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                color: isFavorite ? Colors.red : AppColors.border,
-                size: 20,
-              ),
-            ),
-          ),
-        ]),
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 400),
+      transitionBuilder: (child, animation) {
+        final slide = Tween<Offset>(
+          begin: const Offset(0, 0.4),
+          end: Offset.zero,
+        ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut));
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(position: slide, child: child),
+        );
+      },
+      child: Text(
+        _hints[_index],
+        key: ValueKey(_index),
+        style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }

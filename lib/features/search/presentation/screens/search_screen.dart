@@ -131,7 +131,7 @@ class _FiltersSheetState extends ConsumerState<_FiltersSheet> {
     super.initState();
     _local = ref.read(searchFiltersProvider);
     _minCtrl = TextEditingController(text: _local.minPrice > 0 ? _local.minPrice.toInt().toString() : '');
-    _maxCtrl = TextEditingController(text: _local.maxPrice < 9999999 ? _local.maxPrice.toInt().toString() : '');
+    _maxCtrl = TextEditingController(text: (_local.maxPrice < 9999999 && _local.maxPrice != 500000) ? _local.maxPrice.toInt().toString() : '');
   }
 
   @override
@@ -173,7 +173,14 @@ class _FiltersSheetState extends ConsumerState<_FiltersSheet> {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
               Text('Filtres', style: Theme.of(context).textTheme.headlineSmall),
-              TextButton(onPressed: () => setState(() => _local = _local.reset()), child: const Text('Réinitialiser')),
+              TextButton(
+                onPressed: () => setState(() {
+                  _local = _local.reset();
+                  _minCtrl.text = '';
+                  _maxCtrl.text = '';
+                }),
+                child: const Text('Réinitialiser'),
+              ),
             ]),
           ),
           const Divider(),

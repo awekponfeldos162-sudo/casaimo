@@ -17,7 +17,7 @@ class SearchFilters {
     this.query = '',
     this.type,
     this.minPrice = 0,
-    this.maxPrice = 500000,
+    this.maxPrice = 9999999,
     this.minBedrooms,
     this.minBathrooms,
     this.minRating = 0,
@@ -48,33 +48,16 @@ final searchFiltersProvider = StateProvider<SearchFilters>((ref) => const Search
 
 final searchQueryProvider = StateProvider<String>((ref) => '');
 
-final searchResultsProvider = Provider<AsyncValue<List<ListingModel>>>((ref) {
-  final filters = ref.watch(searchFiltersProvider);
-  return ref.watch(allListingsStreamProvider).whenData((all) {
-    var results = all.where((l) {
-      if (filters.query.isNotEmpty &&
-          !l.title.toLowerCase().contains(filters.query.toLowerCase()) &&
-          !l.city.toLowerCase().contains(filters.query.toLowerCase())) {
-        return false;
-      }
-      if (filters.type != null && l.type != filters.type) return false;
-      if (l.pricePerNight < filters.minPrice || l.pricePerNight > filters.maxPrice) return false;
-      if (filters.minBedrooms != null && l.bedrooms < filters.minBedrooms!) return false;
-      if (filters.minBathrooms != null && l.bathrooms < filters.minBathrooms!) return false;
-      if (l.avgRating < filters.minRating) return false;
-      return true;
-    }).toList();
-
-    switch (filters.sortBy) {
-      case 'prix_asc':
-        results.sort((a, b) => a.pricePerNight.compareTo(b.pricePerNight));
-      case 'prix_desc':
-        results.sort((a, b) => b.pricePerNight.compareTo(a.pricePerNight));
-      case 'note':
-        results.sort((a, b) => b.avgRating.compareTo(a.avgRating));
-      default:
-        break;
-    }
-    return results;
-  });
+final searchResultsProvider = StreamProvider<List<ListingModel>>((ref) {
+  final f = ref.watch(searchFiltersProvider);
+  return ref.watch(listingRepositoryProvider).watchWithFilters(
+    query: f.query,
+    type: f.type,
+    minPrice: f.minPrice,
+    maxPrice: f.maxPrice,
+    minBedrooms: f.minBedrooms,
+    minBathrooms: f.minBathrooms,
+    minRating: f.minRating,
+    sortBy: f.sortBy,
+  );
 });
