@@ -9,6 +9,7 @@ import '../../../../shared/widgets/layout/section_header.dart';
 import '../../../../shared/widgets/layout/shimmer_loader.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../listing/data/models/listing_model.dart';
+import '../../../listing/presentation/providers/paginated_listings_provider.dart';
 import '../../../search/presentation/providers/search_provider.dart';
 import '../providers/home_provider.dart';
 
@@ -22,6 +23,7 @@ class HomeScreen extends ConsumerWidget {
     final nearbyAsync = ref.watch(nearbyListingsProvider);
     final villasAsync = ref.watch(villasProvider);
     final appsAsync = ref.watch(appsStudiosProvider);
+    final paginated = ref.watch(paginatedListingsProvider);
     final categories = ref.watch(categoriesProvider);
     final selectedCat = ref.watch(selectedCategoryProvider);
     final featured = featuredAsync.valueOrNull ?? [];
@@ -40,7 +42,7 @@ class HomeScreen extends ConsumerWidget {
               firstName: firstName,
               avatarUrl: user?.avatarUrl ?? '',
               userName: user?.name ?? '',
-              onNotif: () => context.go('/notifications'),
+              onNotif: () => context.push('/notifications'),
               onSearch: () => context.go('/search'),
               onFilter: () => context.go('/search'),
             ),
@@ -264,8 +266,121 @@ class HomeScreen extends ConsumerWidget {
             ),
           ),
 
+          // ── Tous les logements (paginés) ─────────────────────────────
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+              child: SectionHeader(
+                title: 'Tous les logements',
+                actionLabel: 'Rechercher',
+                onAction: () => context.go('/search'),
+              ),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            sliver: SliverGrid(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 0.78,
+              ),
+              delegate: SliverChildBuilderDelegate(
+                (ctx, i) {
+                  final l = paginated.listings[i];
+                  return _GridCard(
+                    listing: l,
+                    isFav: ref.watch(authProvider)?.favoriteIds.contains(l.id) ?? false,
+                    onTap: () => context.push('/listing/${l.id}'),
+                    onFav: () => ref.read(authProvider.notifier).toggleFavorite(l.id),
+                  );
+                },
+                childCount: paginated.listings.length,
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Center(
+                child: paginated.isLoading
+                    ? const CircularProgressIndicator(strokeWidth: 2)
+                    : paginated.hasMore
+                        ? OutlinedButton.icon(
+                            onPressed: () => ref.read(paginatedListingsProvider.notifier).loadMore(),
+                            icon: const Icon(Icons.expand_more_rounded, size: 18),
+                            label: const Text('Charger plus'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.primary,
+                              side: const BorderSide(color: AppColors.primary),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                            ),
+                          )
+                        : Text('Tout affiché · ${paginated.listings.length} logements',
+                            style: const TextStyle(color: AppColors.textHint, fontSize: 12)),
+              ),
+            ),
+          ),
+
           const SliverToBoxAdapter(child: SizedBox(height: 40)),
         ],
+      ),
+    );
+  }
+}
+
+class _GridCard extends StatelessWidget {
+  final ListingModel listing;
+  final bool isFav;
+  final VoidCallback onTap;
+  final VoidCallback onFav;
+  const _GridCard({required this.listing, required this.isFav, required this.onTap, required this.onFav});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10, offset: const Offset(0, 3))],
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Expanded(
+            child: Stack(children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                child: listing.mainImage.isNotEmpty
+                    ? CachedNetworkImage(imageUrl: listing.mainImage, width: double.infinity, fit: BoxFit.cover)
+                    : Container(color: AppColors.surfaceVariant, child: const Icon(Icons.home_rounded, color: AppColors.textHint, size: 36)),
+              ),
+              Positioned(
+                top: 6, right: 6,
+                child: GestureDetector(
+                  onTap: onFav,
+                  child: Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                    child: Icon(isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded, color: isFav ? Colors.red : AppColors.textSecondary, size: 16),
+                  ),
+                ),
+              ),
+            ]),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(10),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(listing.title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 2),
+              Text(listing.city, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary), maxLines: 1),
+              const SizedBox(height: 4),
+              Text(AppUtils.formatPrice(listing.pricePerNight), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.primary)),
+            ]),
+          ),
+        ]),
       ),
     );
   }

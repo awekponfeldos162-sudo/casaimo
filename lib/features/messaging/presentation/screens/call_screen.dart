@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:permission_handler/permission_handler.dart';
+import '../../../../core/config/app_constants.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
@@ -37,58 +40,42 @@ class _CallScreenState extends ConsumerState<CallScreen>
   String? _callDocId;
   StreamSubscription<DocumentSnapshot>? _callSub;
 
+  // Agora
+  RtcEngine? _agoraEngine;
+  bool get _useAgora => AppConstants.agoraAppId.isNotEmpty;
+
   @override
   void initState() {
     super.initState();
-
-    _pulseCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1800),
-    )..repeat();
-
-    _pulse1 = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _pulseCtrl,
-        curve: const Interval(0.0, 0.70, curve: Curves.easeOut),
-      ),
-    );
-    _pulse2 = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _pulseCtrl,
-        curve: const Interval(0.2, 0.90, curve: Curves.easeOut),
-      ),
-    );
-    _pulse3 = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _pulseCtrl,
-        curve: const Interval(0.4, 1.00, curve: Curves.easeOut),
-      ),
-    );
-
+    _pulseCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1800))..repeat();
+    _pulse1 = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(parent: _pulseCtrl, curve: const Interval(0.0, 0.70, curve: Curves.easeOut)));
+    _pulse2 = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(parent: _pulseCtrl, curve: const Interval(0.2, 0.90, curve: Curves.easeOut)));
+    _pulse3 = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(parent: _pulseCtrl, curve: const Interval(0.4, 1.00, curve: Curves.easeOut)));
     _initCall();
   }
 
   Future<void> _initCall() async {
     final user = ref.read(authProvider);
-    if (user == null) {
-      if (mounted) context.pop();
-      return;
-    }
+    if (user == null) { if (mounted) context.pop(); return; }
 
     final doc = await FirebaseFirestore.instance.collection('calls').add({
-      'callerId': user.id,
-      'callerName': user.name,
+      'callerId':     user.id,
+      'callerName':   user.name,
       'callerAvatar': user.avatarUrl,
-      'calleeId': widget.calleeId,
-      'calleeName': widget.calleeName,
+      'calleeId':     widget.calleeId,
+      'calleeName':   widget.calleeName,
       'calleeAvatar': widget.calleeAvatar,
-      'status': 'ringing',
-      'type': 'audio',
-      'createdAt': FieldValue.serverTimestamp(),
+      'status':       'ringing',
+      'type':         'audio',
+      'createdAt':    FieldValue.serverTimestamp(),
     });
 
     if (!mounted) return;
     setState(() => _callDocId = doc.id);
+
+    if (_useAgora) {
+      await _initAgora(doc.id);
+    }
 
     _callSub = FirebaseFirestore.instance
         .collection('calls')
@@ -97,13 +84,35 @@ class _CallScreenState extends ConsumerState<CallScreen>
         .listen((snap) {
       if (!snap.exists || !mounted) return;
       final status = snap.data()?['status'] as String?;
-      if (status == 'accepted' && _callState == _CallState.ringing) {
+      if (status == 'accepted' && _callState == _CallState.ringing && !_useAgora) {
         setState(() => _callState = _CallState.connected);
         _startTimer();
       } else if (status == 'ended' || status == 'rejected') {
         _onCallEnded();
       }
     });
+  }
+
+  Future<void> _initAgora(String channelId) async {
+    await [Permission.microphone].request();
+    _agoraEngine = createAgoraRtcEngine();
+    await _agoraEngine!.initialize(RtcEngineContext(appId: AppConstants.agoraAppId));
+    _agoraEngine!.registerEventHandler(RtcEngineEventHandler(
+      onJoinChannelSuccess: (conn, elapsed) {
+        if (!mounted) return;
+        setState(() => _callState = _CallState.connected);
+        _startTimer();
+      },
+      onUserOffline: (conn, uid, reason) => _onCallEnded(),
+      onError: (err, msg) => _onCallEnded(),
+    ));
+    await _agoraEngine!.enableAudio();
+    await _agoraEngine!.joinChannel(
+      token:     '',
+      channelId: channelId,
+      uid:       0,
+      options:   const ChannelMediaOptions(clientRoleType: ClientRoleType.clientRoleBroadcaster),
+    );
   }
 
   void _startTimer() {
@@ -113,6 +122,11 @@ class _CallScreenState extends ConsumerState<CallScreen>
   }
 
   Future<void> _endCall() async {
+    if (_useAgora && _agoraEngine != null) {
+      await _agoraEngine!.leaveChannel();
+      await _agoraEngine!.release();
+      _agoraEngine = null;
+    }
     if (_callDocId != null) {
       await FirebaseFirestore.instance
           .collection('calls')
@@ -128,11 +142,22 @@ class _CallScreenState extends ConsumerState<CallScreen>
     if (mounted) context.pop();
   }
 
+  void _toggleMute() {
+    setState(() => _isMuted = !_isMuted);
+    _agoraEngine?.muteLocalAudioStream(_isMuted);
+  }
+
+  void _toggleSpeaker() {
+    setState(() => _isSpeaker = !_isSpeaker);
+    _agoraEngine?.setEnableSpeakerphone(_isSpeaker);
+  }
+
   @override
   void dispose() {
     _pulseCtrl.dispose();
     _timer?.cancel();
     _callSub?.cancel();
+    _agoraEngine?.release();
     super.dispose();
   }
 
@@ -149,7 +174,6 @@ class _CallScreenState extends ConsumerState<CallScreen>
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Background gradient
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
@@ -159,17 +183,12 @@ class _CallScreenState extends ConsumerState<CallScreen>
               ),
             ),
           ),
-
           SafeArea(
             child: Column(
               children: [
                 const SizedBox(height: 40),
-
-                // Status text
                 Text(
-                  _callState == _CallState.ringing
-                      ? 'Appel en cours...'
-                      : _durationStr,
+                  _callState == _CallState.ringing ? 'Appel en cours...' : _durationStr,
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.7),
                     fontSize: 15,
@@ -177,36 +196,21 @@ class _CallScreenState extends ConsumerState<CallScreen>
                   ),
                 ),
                 const SizedBox(height: 10),
-
-                // Callee name
                 Text(
                   widget.calleeName.isNotEmpty ? widget.calleeName : 'Utilisateur',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 30,
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w800),
                 ),
-
                 const SizedBox(height: 8),
-
-                // Subtitle
                 Text(
-                  _callState == _CallState.ringing
-                      ? 'CasaImo · Appel audio'
-                      : 'Connecté',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.5),
-                    fontSize: 13,
-                  ),
+                  _callState == _CallState.ringing ? 'CasaImo · Appel audio' : 'Connecté',
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 13),
                 ),
-
                 const Spacer(),
 
-                // Pulsing avatar
+                // Avatar avec pulsation
                 AnimatedBuilder(
                   animation: _pulseCtrl,
-                  builder: (_, _) {
+                  builder: (ctx, child) {
                     const base = 64.0;
                     const max = 52.0;
                     return SizedBox(
@@ -226,23 +230,14 @@ class _CallScreenState extends ConsumerState<CallScreen>
                             color: AppColors.primaryContainer,
                             border: Border.all(color: Colors.white, width: 3),
                             image: widget.calleeAvatar.isNotEmpty
-                                ? DecorationImage(
-                                    image: NetworkImage(widget.calleeAvatar),
-                                    fit: BoxFit.cover,
-                                  )
+                                ? DecorationImage(image: NetworkImage(widget.calleeAvatar), fit: BoxFit.cover)
                                 : null,
                           ),
                           child: widget.calleeAvatar.isEmpty
                               ? Center(
                                   child: Text(
-                                    widget.calleeName.isNotEmpty
-                                        ? widget.calleeName[0].toUpperCase()
-                                        : '?',
-                                    style: const TextStyle(
-                                      fontSize: 46,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.primary,
-                                    ),
+                                    widget.calleeName.isNotEmpty ? widget.calleeName[0].toUpperCase() : '?',
+                                    style: const TextStyle(fontSize: 46, fontWeight: FontWeight.bold, color: AppColors.primary),
                                   ),
                                 )
                               : null,
@@ -254,41 +249,42 @@ class _CallScreenState extends ConsumerState<CallScreen>
 
                 const Spacer(),
 
-                // Connected controls
-                if (_callState == _CallState.connected) ...[
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 48),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _CtrlBtn(
-                          icon: _isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
-                          label: _isMuted ? 'Muet' : 'Micro',
-                          active: _isMuted,
-                          onTap: () => setState(() => _isMuted = !_isMuted),
-                        ),
-                        _CtrlBtn(
-                          icon: _isSpeaker
-                              ? Icons.volume_up_rounded
-                              : Icons.volume_down_rounded,
-                          label: 'Haut-parl.',
-                          active: _isSpeaker,
-                          onTap: () => setState(() => _isSpeaker = !_isSpeaker),
-                        ),
+                // Muet + Haut-parleur — toujours visibles
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 48),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _CtrlBtn(
+                        icon: _isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
+                        label: _isMuted ? 'Muet' : 'Micro',
+                        active: _isMuted,
+                        onTap: _toggleMute,
+                      ),
+                      _CtrlBtn(
+                        icon: _isSpeaker ? Icons.volume_up_rounded : Icons.volume_off_rounded,
+                        label: _isSpeaker ? 'Haut-parl.' : 'Écouteur',
+                        active: _isSpeaker,
+                        onTap: _toggleSpeaker,
+                      ),
+                      if (_callState == _CallState.connected)
                         _CtrlBtn(
                           icon: Icons.dialpad_rounded,
                           label: 'Clavier',
                           onTap: () {},
+                        )
+                      else
+                        _CtrlBtn(
+                          icon: Icons.person_rounded,
+                          label: 'Contact',
+                          onTap: () {},
+                          dimmed: true,
                         ),
-                      ],
-                    ),
+                    ],
                   ),
-                  const SizedBox(height: 36),
-                ] else ...[
-                  const SizedBox(height: 36),
-                ],
+                ),
+                const SizedBox(height: 36),
 
-                // End call button
                 GestureDetector(
                   onTap: _endCall,
                   child: Container(
@@ -297,14 +293,11 @@ class _CallScreenState extends ConsumerState<CallScreen>
                     decoration: const BoxDecoration(
                       color: Color(0xFFE53935),
                       shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(color: Color(0x55E53935), blurRadius: 20, spreadRadius: 4),
-                      ],
+                      boxShadow: [BoxShadow(color: Color(0x55E53935), blurRadius: 20, spreadRadius: 4)],
                     ),
                     child: const Icon(Icons.call_end_rounded, color: Colors.white, size: 34),
                   ),
                 ),
-
                 const SizedBox(height: 60),
               ],
             ),
@@ -315,7 +308,6 @@ class _CallScreenState extends ConsumerState<CallScreen>
   }
 }
 
-// ── Pulsing ring ───────────────────────────────────────────────────────────────
 class _Ring extends StatelessWidget {
   final double r;
   final double o;
@@ -327,42 +319,37 @@ class _Ring extends StatelessWidget {
     height: r * 2,
     decoration: BoxDecoration(
       shape: BoxShape.circle,
-      border: Border.all(
-        color: Colors.white.withValues(alpha: o),
-        width: 1.5,
-      ),
+      border: Border.all(color: Colors.white.withValues(alpha: o), width: 1.5),
     ),
   );
 }
 
-// ── Control button ─────────────────────────────────────────────────────────────
 class _CtrlBtn extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
   final bool active;
-  const _CtrlBtn({required this.icon, required this.label, required this.onTap, this.active = false});
+  final bool dimmed;
+  const _CtrlBtn({required this.icon, required this.label, required this.onTap, this.active = false, this.dimmed = false});
 
   @override
   Widget build(BuildContext context) => GestureDetector(
     onTap: onTap,
-    child: Column(children: [
-      Container(
-        width: 58,
-        height: 58,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: active
-              ? Colors.white.withValues(alpha: 0.35)
-              : Colors.white.withValues(alpha: 0.12),
+    child: Opacity(
+      opacity: dimmed ? 0.4 : 1.0,
+      child: Column(children: [
+        Container(
+          width: 58,
+          height: 58,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: active ? Colors.white.withValues(alpha: 0.35) : Colors.white.withValues(alpha: 0.12),
+          ),
+          child: Icon(icon, color: Colors.white, size: 25),
         ),
-        child: Icon(icon, color: Colors.white, size: 25),
-      ),
-      const SizedBox(height: 7),
-      Text(
-        label,
-        style: TextStyle(color: Colors.white.withValues(alpha: 0.65), fontSize: 11),
-      ),
-    ]),
+        const SizedBox(height: 7),
+        Text(label, style: TextStyle(color: Colors.white.withValues(alpha: 0.65), fontSize: 11)),
+      ]),
+    ),
   );
 }

@@ -11,6 +11,8 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
+  flutter_web_plugins:
+    sdk: flutter
 
   cupertino_icons: ^1.0.8
 
@@ -28,6 +30,13 @@ dependencies:
   firebase_storage: ^12.1.3
   firebase_messaging: ^15.0.4
   firebase_crashlytics: ^4.0.4
+  firebase_app_check: ^0.3.1+2
+  cloud_functions: ^5.0.0
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^5.2.3
+  agora_rtc_engine: ^6.3.2
+  flutter_dotenv: ^5.2.1
+  flutter_local_notifications: ^17.2.4
 
   # UI & Design
   cached_network_image: ^3.3.1
@@ -106,3 +115,4 @@ flutter:
     - assets/images/
     - assets/icons/
     - assets/animations/
+    - .env

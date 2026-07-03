@@ -38,12 +38,18 @@ class _CallSheet extends StatelessWidget {
     required this.hostAvatar,
   });
 
-  Future<void> _launch(String url) async {
+  Future<void> _launch(String url, {String? fallback}) async {
     final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else if (fallback != null) {
+      final fb = Uri.parse(fallback);
+      if (await canLaunchUrl(fb)) await launchUrl(fb, mode: LaunchMode.externalApplication);
+    }
   }
 
-  String get _cleanPhone => hostPhone.replaceAll(RegExp(r'[\s\-()]'), '');
+  // Supprime espaces, tirets, parenthèses ; garde le + pour l'indicatif
+  String get _cleanPhone => hostPhone.replaceAll(RegExp(r'[\s\-() ]'), '');
 
   @override
   Widget build(BuildContext context) {
@@ -124,7 +130,11 @@ class _CallSheet extends StatelessWidget {
             ),
             onTap: () {
               Navigator.pop(context);
-              _launch('https://wa.me/$_cleanPhone');
+              // Essaie le deep-link natif WhatsApp d'abord, puis la version web
+              _launch(
+                'whatsapp://send?phone=$_cleanPhone',
+                fallback: 'https://wa.me/$_cleanPhone',
+              );
             },
           ),
 

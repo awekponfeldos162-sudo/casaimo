@@ -73,12 +73,16 @@ service cloud.firestore {
       allow delete: if false;
 
       match /msgs/{msgId} {
+        // exists() avant get() pour éviter l'erreur si le doc parent n'existe pas encore
         allow read: if isAuth() &&
+          exists(/databases/$(database)/documents/messages/$(conversationId)) &&
           request.auth.uid in get(/databases/$(database)/documents/messages/$(conversationId)).data.participants;
         allow create: if isAuth() &&
+          exists(/databases/$(database)/documents/messages/$(conversationId)) &&
           request.auth.uid in get(/databases/$(database)/documents/messages/$(conversationId)).data.participants &&
           request.resource.data.senderId == request.auth.uid;
         allow update: if isAuth() &&
+          exists(/databases/$(database)/documents/messages/$(conversationId)) &&
           request.auth.uid in get(/databases/$(database)/documents/messages/$(conversationId)).data.participants;
         allow delete: if false;
       }
@@ -95,7 +99,21 @@ service cloud.firestore {
     // ─── notifications ─────────────────────────────────────────────
     match /notifications/{notifId} {
       allow read: if isAuth() && resource.data.userId == request.auth.uid;
-      allow create: if isAdmin();
+      allow create: if isAuth() && (
+        isAdmin() ||
+        // Guest notifie l'hôte pour une nouvelle réservation
+        (
+          request.resource.data.type == 'new_booking' &&
+          request.resource.data.bookingId is string &&
+          get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.guestId == request.auth.uid
+        ) ||
+        // Hôte notifie le client après confirmation ou refus
+        (
+          request.resource.data.bookingId is string &&
+          request.resource.data.type in ['booking_confirmed', 'booking_rejected'] &&
+          get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.hostId == request.auth.uid
+        )
+      );
       allow update: if isAuth() && resource.data.userId == request.auth.uid;
       allow delete: if isAuth() && resource.data.userId == request.auth.uid;
     }

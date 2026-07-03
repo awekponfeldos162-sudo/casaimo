@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/layout/responsive_center.dart';
 import '../providers/auth_provider.dart';
 
 class ClientSignupScreen extends ConsumerStatefulWidget {
@@ -133,18 +134,39 @@ class _ClientSignupScreenState extends ConsumerState<ClientSignupScreen> {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+    final isWide = isWideScreen(context);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       body: SingleChildScrollView(
-        child: Column(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: isWide ? 48 : 0),
+          child: ResponsiveCenter(
+            maxWidth: 460,
+            child: DecoratedBox(
+              decoration: isWide
+                  ? BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(28),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 32,
+                          offset: const Offset(0, 12),
+                        ),
+                      ],
+                    )
+                  : const BoxDecoration(),
+              child: ClipRRect(
+                borderRadius: isWide ? BorderRadius.circular(28) : BorderRadius.zero,
+                child: Column(
           children: [
             // ── Section supérieure verte ──────────────────────────────────
             Container(
-              height: size.height * 0.30,
+              height: isWide ? 200 : size.height * 0.30,
               width: double.infinity,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
                   colors: [
                     Color(0xFF1B5E20),
                     Color(0xFF2E7D32),
@@ -153,9 +175,9 @@ class _ClientSignupScreenState extends ConsumerState<ClientSignupScreen> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.vertical(
-                  bottom: Radius.circular(40),
-                ),
+                borderRadius: isWide
+                    ? BorderRadius.zero
+                    : const BorderRadius.vertical(bottom: Radius.circular(40)),
               ),
               child: Stack(
                 children: [
@@ -474,6 +496,10 @@ class _ClientSignupScreenState extends ConsumerState<ClientSignupScreen> {
               ),
             ),
           ],
+        ),
+              ),
+            ),
+          ),
         ),
       ),
     );

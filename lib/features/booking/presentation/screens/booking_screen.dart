@@ -1,16 +1,14 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:table_calendar/table_calendar.dart';
-import '../../../../core/config/app_constants.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_utils.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../listing/data/models/listing_model.dart';
 import '../../../listing/presentation/providers/listing_provider.dart';
-import '../../data/models/booking_model.dart';
 
 class BookingScreen extends ConsumerStatefulWidget {
   final String listingId;
@@ -26,7 +24,6 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   DateTime? _checkOut;
   DateTime _focusedDay = DateTime.now(); // obligatoire pour TableCalendar
   int _guests = 1;
-  String _paymentMethod = 'mtn_momo';
   bool _loading = false;
   int _photoIndex = 0;
 
@@ -401,56 +398,11 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
             ]),
           ),
 
-          const SizedBox(height: 20),
-
-          // Mode de paiement
-          Text('Mode de paiement', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 10),
-
-          ...AppConstants.mobileMoneyProviders.asMap().entries.map((e) {
-            final key = e.value.toLowerCase().replaceAll(' ', '_');
-            final colors = [AppColors.warning, const Color(0xFFFF6600), const Color(0xFF0078D4), const Color(0xFF00B4D8)];
-            return _PaymentTile(
-              value: key,
-              label: e.value,
-              icon: Icons.phone_android_rounded,
-              color: colors[e.key % colors.length],
-              selected: _paymentMethod == key,
-              onTap: () => setState(() => _paymentMethod = key),
-            );
-          }),
-          _PaymentTile(
-            value: 'card_visa',
-            label: 'Visa / Mastercard',
-            icon: Icons.credit_card_rounded,
-            color: const Color(0xFF1A1F71),
-            selected: _paymentMethod == 'card_visa',
-            onTap: () => setState(() => _paymentMethod = 'card_visa'),
-          ),
-
-          const SizedBox(height: 14),
-
-          // Badge sécurité
-          Container(
-            padding: const EdgeInsets.all(13),
-            decoration: BoxDecoration(
-              color: AppColors.primaryContainer,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
-            ),
-            child: const Row(children: [
-              Icon(Icons.lock_outline_rounded, size: 16, color: AppColors.primary),
-              SizedBox(width: 10),
-              Expanded(child: Text(
-                'Paiement 100% sécurisé · Données chiffrées',
-                style: TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w500),
-              )),
-            ]),
-          ),
+          const SizedBox(height: 8),
         ],
       ),
       bottomNavigationBar: _BottomBar(
-        label: 'Confirmer et payer',
+        label: 'Confirmer la réservation',
         enabled: true,
         loading: _loading,
         priceLabel: AppUtils.formatPrice(tot),
@@ -463,36 +415,75 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   Future<void> _confirm(ListingModel listing) async {
     setState(() => _loading = true);
     try {
-      final user = ref.read(authProvider);
-      if (user == null) { if (mounted) context.go('/login'); return; }
-      final sub = _sub(listing);
-      final svc = _svc(listing);
-      final booking = BookingModel(
-        id: '',
-        listingId: listing.id,
-        listingTitle: listing.title,
-        listingImage: listing.mainImage,
-        guestId: user.id,
-        guestName: user.name,
-        guestAvatar: user.avatarUrl,
-        hostId: listing.hostId,
-        checkIn: _checkIn!,
-        checkOut: _checkOut!,
-        guests: _guests,
-        pricePerNight: listing.pricePerNight,
-        cleaningFee: listing.cleaningFee,
-        serviceFee: svc,
-        total: sub + listing.cleaningFee + svc,
-        paymentMethod: _paymentMethod,
-        paymentStatus: 'pending',
-        status: BookingStatus.pending,
-        createdAt: DateTime.now(),
-      );
-      final docRef = await FirebaseFirestore.instance.collection('bookings').add(booking.toFirestore());
-      if (mounted) context.go('/booking-confirmation/${docRef.id}');
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser == null) { if (mounted) context.go('/login'); return; }
+
+      // Rafraîchit le token pour garantir que Firestore reçoit request.auth valide
+      await firebaseUser.getIdToken(true);
+
+      final uid = firebaseUser.uid;
+      final fs = FirebaseFirestore.instance;
+
+      final userDoc = await fs.collection('users').doc(uid).get();
+      final userData = userDoc.data() ?? {};
+
+      final sub = listing.pricePerNight * _nights;
+      final svc = (sub * listing.serviceFeePercent).roundToDouble();
+      final total = sub + listing.cleaningFee + svc;
+
+      final bookingRef = fs.collection('bookings').doc();
+
+      // Étape 1 : créer le booking
+      await bookingRef.set({
+        'listingId':       listing.id,
+        'listingTitle':    listing.title,
+        'listingImage':    listing.mediaUrls.isNotEmpty ? listing.mediaUrls.first : '',
+        'guestId':         uid,
+        'guestName':       userData['name'] ?? '',
+        'guestAvatar':     userData['avatarUrl'] ?? '',
+        'hostId':          listing.hostId,
+        'hostName':        listing.hostName,
+        'checkIn':         Timestamp.fromDate(_checkIn!),
+        'checkOut':        Timestamp.fromDate(_checkOut!),
+        'guests':          _guests,
+        'pricePerNight':   listing.pricePerNight,
+        'cleaningFee':     listing.cleaningFee,
+        'serviceFee':      svc,
+        'total':           total,
+        'status':          'pending_approval',
+        'qrToken':         null,
+        'rejectionReason': null,
+        'createdAt':       FieldValue.serverTimestamp(),
+        'updatedAt':       FieldValue.serverTimestamp(),
+      });
+
+      // Étape 2 : notifier l'hôte (la règle vérifie que bookingId.guestId == uid)
+      await fs.collection('notifications').add({
+        'userId':    listing.hostId,
+        'type':      'new_booking',
+        'title':     'Nouvelle demande de réservation',
+        'body':      '${userData['name'] ?? 'Un voyageur'} souhaite réserver "${listing.title}"',
+        'bookingId': bookingRef.id,
+        'listingId': listing.id,
+        'read':      false,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      if (mounted) context.go('/booking-confirmation/${bookingRef.id}');
+    } on FirebaseException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('[${e.code}] ${e.message ?? 'Erreur Firebase'}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e'), backgroundColor: AppColors.error));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: AppColors.error),
+        );
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -621,40 +612,6 @@ class _PriceRow extends StatelessWidget {
   ]);
 }
 
-class _PaymentTile extends StatelessWidget {
-  final String value, label;
-  final IconData icon;
-  final Color color;
-  final bool selected;
-  final VoidCallback onTap;
-  const _PaymentTile({required this.value, required this.label, required this.icon, required this.color, required this.selected, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: AnimatedContainer(
-      duration: const Duration(milliseconds: 150),
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-      decoration: BoxDecoration(
-        color: selected ? AppColors.primaryContainer : Colors.white,
-        border: Border.all(color: selected ? AppColors.primary : AppColors.border, width: selected ? 1.5 : 1),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(children: [
-        Container(
-          width: 40, height: 40,
-          decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
-          child: Icon(icon, color: color, size: 22),
-        ),
-        const SizedBox(width: 14),
-        Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14))),
-        if (selected)
-          const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 22),
-      ]),
-    ),
-  );
-}
 
 class _BottomBar extends StatelessWidget {
   final String label, priceLabel, sublabel;

@@ -53,7 +53,13 @@ class _DetailView extends StatelessWidget {
           SliverAppBar(
             expandedHeight: 210,
             pinned: true,
-            backgroundColor: const Color(0xFF1B5E20),
+            backgroundColor: switch (booking.status) {
+              BookingStatus.rejected  => const Color(0xFFB71C1C),
+              BookingStatus.cancelled => const Color(0xFF546E7A),
+              BookingStatus.completed => const Color(0xFF37474F),
+              BookingStatus.checkedIn => const Color(0xFF0D47A1),
+              _                       => const Color(0xFF1B5E20),
+            },
             foregroundColor: Colors.white,
             title: const Text(
               'Détails réservation',
@@ -111,6 +117,14 @@ class _DetailView extends StatelessWidget {
                         style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
                         maxLines: 2, overflow: TextOverflow.ellipsis,
                       ),
+                      if (booking.hostName.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Row(children: [
+                          const Icon(Icons.person_rounded, size: 12, color: AppColors.textSecondary),
+                          const SizedBox(width: 4),
+                          Text(booking.hostName, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                        ]),
+                      ],
                       const SizedBox(height: 8),
                       Wrap(spacing: 12, children: [
                         _MiniTag(icon: Icons.people_rounded, label: '${booking.guests} voyageur${booking.guests > 1 ? 's' : ''}'),
@@ -150,46 +164,6 @@ class _DetailView extends StatelessWidget {
                   ]),
                 ),
 
-                const SizedBox(height: 12),
-
-                // ── Payment method ──────────────────────────────────────
-                _Card(
-                  child: Row(children: [
-                    Container(
-                      width: 44, height: 44,
-                      decoration: BoxDecoration(
-                        color: _paymentColor(_paymentLabel(booking.paymentMethod)).withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(
-                        _paymentIcon(booking.paymentMethod),
-                        color: _paymentColor(_paymentLabel(booking.paymentMethod)),
-                        size: 22,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      const Text('Moyen de paiement', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                      const SizedBox(height: 2),
-                      Text(
-                        _paymentLabel(booking.paymentMethod),
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-                      ),
-                    ])),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: AppColors.success.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                        Icon(Icons.check_circle_rounded, size: 13, color: AppColors.success),
-                        SizedBox(width: 4),
-                        Text('Payé', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.w700, fontSize: 12)),
-                      ]),
-                    ),
-                  ]),
-                ),
 
                 const SizedBox(height: 12),
 
@@ -270,43 +244,18 @@ class _DetailView extends StatelessWidget {
     );
   }
 
-  Color _statusColor(BookingStatus s) => {
-    BookingStatus.confirmed: AppColors.success,
-    BookingStatus.pending: AppColors.warning,
-    BookingStatus.cancelled: AppColors.error,
-    BookingStatus.active: AppColors.primary,
-    BookingStatus.completed: AppColors.textSecondary,
-  }[s] ?? AppColors.textSecondary;
+  Color _statusColor(BookingStatus s) => switch (s) {
+    BookingStatus.pendingApproval => AppColors.warning,
+    BookingStatus.confirmed       => AppColors.success,
+    BookingStatus.rejected        => AppColors.error,
+    BookingStatus.checkedIn       => AppColors.primary,
+    BookingStatus.active          => AppColors.primary,
+    BookingStatus.completed       => AppColors.textSecondary,
+    BookingStatus.cancelled       => AppColors.error,
+  };
 
-  String _statusLabel(BookingStatus s) => {
-    BookingStatus.confirmed: 'Confirmé',
-    BookingStatus.pending: 'En attente',
-    BookingStatus.cancelled: 'Annulé',
-    BookingStatus.active: 'En cours',
-    BookingStatus.completed: 'Terminé',
-  }[s] ?? '';
+  String _statusLabel(BookingStatus s) => s.label;
 
-  String _paymentLabel(String method) {
-    if (method == 'card_visa') return 'Visa / Mastercard';
-    if (method.contains('mtn')) return 'MTN Mobile Money';
-    if (method.contains('orange')) return 'Orange Money';
-    if (method.contains('moov')) return 'Moov Money';
-    if (method.contains('wave')) return 'Wave';
-    return method;
-  }
-
-  IconData _paymentIcon(String method) {
-    if (method == 'card_visa') return Icons.credit_card_rounded;
-    return Icons.phone_android_rounded;
-  }
-
-  Color _paymentColor(String label) {
-    if (label.contains('Visa')) return const Color(0xFF1A1F71);
-    if (label.contains('MTN')) return const Color(0xFFFFCC00);
-    if (label.contains('Orange')) return const Color(0xFFFF6600);
-    if (label.contains('Wave')) return const Color(0xFF00B4D8);
-    return AppColors.primary;
-  }
 }
 
 // ── Header widget ──────────────────────────────────────────────────────────────
@@ -314,39 +263,73 @@ class _GreenHeader extends StatelessWidget {
   final BookingModel booking;
   const _GreenHeader({required this.booking});
 
+  (IconData, String, List<Color>) get _config => switch (booking.status) {
+    BookingStatus.pendingApproval => (
+      Icons.hourglass_top_rounded,
+      'En attente de validation',
+      [const Color(0xFF1B5E20), const Color(0xFF2E7D32)],
+    ),
+    BookingStatus.confirmed => (
+      Icons.check_circle_rounded,
+      'Réservation confirmée',
+      [const Color(0xFF1B5E20), const Color(0xFF388E3C)],
+    ),
+    BookingStatus.rejected => (
+      Icons.cancel_rounded,
+      'Réservation refusée',
+      [const Color(0xFFB71C1C), const Color(0xFFC62828)],
+    ),
+    BookingStatus.checkedIn => (
+      Icons.login_rounded,
+      'Check-in effectué',
+      [const Color(0xFF0D47A1), const Color(0xFF1565C0)],
+    ),
+    BookingStatus.active => (
+      Icons.home_rounded,
+      'Séjour en cours',
+      [const Color(0xFF1B5E20), const Color(0xFF388E3C)],
+    ),
+    BookingStatus.completed => (
+      Icons.check_circle_outline_rounded,
+      'Séjour terminé',
+      [const Color(0xFF37474F), const Color(0xFF546E7A)],
+    ),
+    BookingStatus.cancelled => (
+      Icons.cancel_outlined,
+      'Réservation annulée',
+      [const Color(0xFF546E7A), const Color(0xFF607D8B)],
+    ),
+  };
+
   @override
-  Widget build(BuildContext context) => Container(
-    decoration: const BoxDecoration(
-      gradient: LinearGradient(
-        colors: [Color(0xFF1B5E20), Color(0xFF388E3C)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
+  Widget build(BuildContext context) {
+    final (icon, title, colors) = _config;
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: colors, begin: Alignment.topLeft, end: Alignment.bottomRight),
       ),
-    ),
-    child: SafeArea(
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        const SizedBox(height: 44),
-        Container(
-          width: 60, height: 60,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.2),
-            shape: BoxShape.circle,
+      child: SafeArea(
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          const SizedBox(height: 44),
+          Container(
+            width: 60, height: 60,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: Colors.white, size: 34),
           ),
-          child: const Icon(Icons.check_rounded, color: Colors.white, size: 34),
-        ),
-        const SizedBox(height: 10),
-        const Text(
-          'Réservation confirmée',
-          style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          '${booking.nights} nuit${booking.nights > 1 ? 's' : ''} · ${AppUtils.formatPrice(booking.total)}',
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 13),
-        ),
-      ]),
-    ),
-  );
+          const SizedBox(height: 10),
+          Text(title, style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 4),
+          Text(
+            '${booking.nights} nuit${booking.nights > 1 ? 's' : ''} · ${AppUtils.formatPrice(booking.total)}',
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 13),
+          ),
+        ]),
+      ),
+    );
+  }
 }
 
 // ── Small reusable widgets ─────────────────────────────────────────────────────

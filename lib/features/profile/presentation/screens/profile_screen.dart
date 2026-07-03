@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/providers/locale_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../l10n/app_localizations.dart';
-import '../../../auth/data/models/user_model.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -18,7 +17,7 @@ class ProfileScreen extends ConsumerWidget {
         title: const Text('Profil'),
         actions: [
           IconButton(
-            onPressed: () => context.go('/notifications'),
+            onPressed: () => context.push('/notifications'),
             icon: const Icon(Icons.notifications_none_rounded),
           ),
         ],
@@ -52,14 +51,6 @@ class ProfileScreen extends ConsumerWidget {
                   SizedBox(width: 4),
                   Text('Compte vérifié', style: TextStyle(fontSize: 13, color: AppColors.primary, fontWeight: FontWeight.w500)),
                 ]),
-              ],
-              if (user?.role == UserRole.guest) ...[
-                const SizedBox(height: 16),
-                OutlinedButton.icon(
-                  onPressed: () => context.go('/host/dashboard'),
-                  icon: const Icon(Icons.home_work_rounded, size: 18),
-                  label: const Text('Devenir hôte'),
-                ),
               ],
             ]),
           ),

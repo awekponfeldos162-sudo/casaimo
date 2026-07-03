@@ -30,5 +30,16 @@ service firebase.storage {
                    && request.resource.size < 5 * 1024 * 1024;
       allow delete: if request.auth != null && request.auth.uid == userId;
     }
+
+    // ── Images partagées dans le chat ──────────────────────────────
+    // Lecture : tout utilisateur authentifié (participant à la conv)
+    // Écriture : authentifié, image uniquement, max 20 MB
+    match /chats/{conversationId}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.resource.size < 20 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+      allow delete: if request.auth != null;
+    }
   }
 }

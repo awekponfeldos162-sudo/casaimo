@@ -32,7 +32,7 @@ class HostDashboardScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Espace hôte'),
         actions: [
-          IconButton(onPressed: () => context.go('/notifications'), icon: const Icon(Icons.notifications_none_rounded)),
+          IconButton(onPressed: () => context.push('/notifications'), icon: const Icon(Icons.notifications_none_rounded)),
         ],
       ),
       body: SingleChildScrollView(

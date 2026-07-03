@@ -17,8 +17,16 @@ final bookingHistoryProvider = StreamProvider<List<BookingModel>>((ref) {
       .where('guestId', isEqualTo: user.id)
       .orderBy('createdAt', descending: true)
       .snapshots()
-      .map((snap) => snap.docs.map(BookingModel.fromFirestore).toList());
+      .map((snap) => snap.docs
+          .map(BookingModel.fromFirestore)
+          .where((b) => !b.hiddenByGuest)
+          .toList());
 });
+
+bool _isDeletable(BookingStatus s) =>
+    s == BookingStatus.completed ||
+    s == BookingStatus.rejected ||
+    s == BookingStatus.cancelled;
 
 class BookingHistoryScreen extends ConsumerWidget {
   const BookingHistoryScreen({super.key});
@@ -27,7 +35,19 @@ class BookingHistoryScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final asyncBookings = ref.watch(bookingHistoryProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Mes réservations')),
+      appBar: AppBar(
+        title: const Text('Mes réservations'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/profile');
+            }
+          },
+        ),
+      ),
       body: asyncBookings.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Erreur: $e')),
@@ -40,7 +60,54 @@ class BookingHistoryScreen extends ConsumerWidget {
             : ListView.builder(
                 padding: const EdgeInsets.all(16),
                 itemCount: bookings.length,
-                itemBuilder: (_, i) => _BookingCard(booking: bookings[i]),
+                itemBuilder: (ctx, i) {
+                  final booking = bookings[i];
+                  final card = _BookingCard(booking: booking);
+                  if (!_isDeletable(booking.status)) return card;
+
+                  return Dismissible(
+                    key: ValueKey(booking.id),
+                    direction: DismissDirection.endToStart,
+                    confirmDismiss: (_) => showDialog<bool>(
+                      context: ctx,
+                      builder: (dlg) => AlertDialog(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        title: const Text('Supprimer ?', style: TextStyle(fontWeight: FontWeight.w700)),
+                        content: const Text('Cette réservation sera retirée de votre historique. Cette action est irréversible.'),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(dlg, false), child: const Text('Annuler')),
+                          FilledButton(
+                            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+                            onPressed: () => Navigator.pop(dlg, true),
+                            child: const Text('Supprimer'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    onDismissed: (_) => FirebaseFirestore.instance
+                        .collection('bookings')
+                        .doc(booking.id)
+                        .update({'hiddenByGuest': true}),
+                    background: Container(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.only(right: 20),
+                      decoration: BoxDecoration(
+                        color: AppColors.error,
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: const Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.delete_rounded, color: Colors.white, size: 28),
+                          SizedBox(height: 4),
+                          Text('Supprimer', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    ),
+                    child: card,
+                  );
+                },
               ),
       ),
     );
@@ -54,7 +121,7 @@ class _BookingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusColor = _statusColor(booking.status);
-    final statusLabel = _statusLabel(booking.status);
+    final statusLabel = booking.status.label;
 
     return GestureDetector(
       onTap: () => context.push('/booking-detail/${booking.id}'),
@@ -70,7 +137,6 @@ class _BookingCard extends StatelessWidget {
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
-          // Top: thumbnail + info
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             ClipRRect(
               borderRadius: const BorderRadius.only(
@@ -90,7 +156,6 @@ class _BookingCard extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(0, 12, 12, 12),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  // Title + status badge
                   Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Expanded(child: Text(
                       booking.listingTitle,
@@ -108,7 +173,6 @@ class _BookingCard extends StatelessWidget {
                     ),
                   ]),
                   const SizedBox(height: 8),
-                  // Dates
                   Row(children: [
                     const Icon(Icons.calendar_today_rounded, size: 12, color: AppColors.textSecondary),
                     const SizedBox(width: 5),
@@ -118,7 +182,6 @@ class _BookingCard extends StatelessWidget {
                     )),
                   ]),
                   const SizedBox(height: 4),
-                  // Nights + guests
                   Row(children: [
                     const Icon(Icons.nights_stay_rounded, size: 12, color: AppColors.textSecondary),
                     const SizedBox(width: 5),
@@ -127,16 +190,21 @@ class _BookingCard extends StatelessWidget {
                       style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                     ),
                   ]),
+                  if (_isDeletable(booking.status)) ...[
+                    const SizedBox(height: 6),
+                    Row(children: [
+                      const Icon(Icons.swipe_left_rounded, size: 11, color: AppColors.textHint),
+                      const SizedBox(width: 4),
+                      Text('Glisser pour supprimer', style: TextStyle(fontSize: 10, color: AppColors.textHint.withValues(alpha: 0.7))),
+                    ]),
+                  ],
                 ]),
               ),
             ),
           ]),
 
-          // Bottom: total + ref + arrow
           Container(
-            decoration: const BoxDecoration(
-              border: Border(top: BorderSide(color: AppColors.border)),
-            ),
+            decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.border))),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -161,21 +229,15 @@ class _BookingCard extends StatelessWidget {
     );
   }
 
-  Color _statusColor(BookingStatus s) => {
-    BookingStatus.confirmed: AppColors.success,
-    BookingStatus.pending: AppColors.warning,
-    BookingStatus.cancelled: AppColors.error,
-    BookingStatus.active: AppColors.primary,
-    BookingStatus.completed: AppColors.textSecondary,
-  }[s] ?? AppColors.textSecondary;
-
-  String _statusLabel(BookingStatus s) => {
-    BookingStatus.confirmed: 'Confirmé',
-    BookingStatus.pending: 'En attente',
-    BookingStatus.cancelled: 'Annulé',
-    BookingStatus.active: 'En cours',
-    BookingStatus.completed: 'Terminé',
-  }[s] ?? '';
+  Color _statusColor(BookingStatus s) => switch (s) {
+    BookingStatus.pendingApproval => AppColors.warning,
+    BookingStatus.confirmed       => AppColors.success,
+    BookingStatus.rejected        => AppColors.error,
+    BookingStatus.checkedIn       => AppColors.primary,
+    BookingStatus.completed       => AppColors.textSecondary,
+    BookingStatus.cancelled       => AppColors.error,
+    BookingStatus.active          => AppColors.primary,
+  };
 }
 
 class _ImgPlaceholder extends StatelessWidget {

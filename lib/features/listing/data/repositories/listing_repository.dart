@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../../core/config/app_constants.dart';
 import '../models/listing_model.dart';
 
 class ListingRepository {
@@ -89,5 +90,19 @@ class ListingRepository {
 
   Future<void> delete(String id) async {
     await _col.doc(id).delete();
+  }
+
+  Future<(List<ListingModel>, DocumentSnapshot?)> fetchPaginated({
+    DocumentSnapshot? startAfter,
+    int limit = AppConstants.pageSize,
+  }) async {
+    Query<Map<String, dynamic>> q = _col
+        .where('status', isEqualTo: 'published')
+        .orderBy('createdAt', descending: true)
+        .limit(limit);
+    if (startAfter != null) q = q.startAfterDocument(startAfter);
+    final snap = await q.get();
+    final last = snap.docs.isEmpty ? null : snap.docs.last;
+    return (snap.docs.map(ListingModel.fromFirestore).toList(), last);
   }
 }

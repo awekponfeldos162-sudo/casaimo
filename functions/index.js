@@ -14,11 +14,11 @@ const JWT_SECRET = process.env.JWT_SECRET || 'casaimo-qr-secret-2025';
 // ─── createBooking ────────────────────────────────────────────────────────────
 // Called by guest after selecting dates. Simulates payment and creates booking
 // with status pending_approval. Sends in-app notification to host.
-exports.createBooking = onCall(async (request) => {
+exports.createBooking = onCall({ enforceAppCheck: false }, async (request) => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Non authentifié');
 
-  const { listingId, checkIn, checkOut, guests, paymentMethod } = request.data;
+  const { listingId, checkIn, checkOut, guests } = request.data;
   if (!listingId || !checkIn || !checkOut || !guests) {
     throw new HttpsError('invalid-argument', 'Données manquantes');
   }
@@ -58,8 +58,6 @@ exports.createBooking = onCall(async (request) => {
     cleaningFee,
     serviceFee: svc,
     total,
-    paymentMethod: paymentMethod || 'mtn_momo',
-    paymentStatus: 'paid',
     status: 'pending_approval',
     qrToken: null,
     rejectionReason: null,
@@ -85,7 +83,7 @@ exports.createBooking = onCall(async (request) => {
 // ─── approveBooking ───────────────────────────────────────────────────────────
 // Called by host to approve a pending booking.
 // Generates a signed JWT → stored as qrToken in the booking document.
-exports.approveBooking = onCall(async (request) => {
+exports.approveBooking = onCall({ enforceAppCheck: false }, async (request) => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Non authentifié');
 
@@ -137,7 +135,7 @@ exports.approveBooking = onCall(async (request) => {
 
 // ─── rejectBooking ────────────────────────────────────────────────────────────
 // Called by host to reject a pending booking.
-exports.rejectBooking = onCall(async (request) => {
+exports.rejectBooking = onCall({ enforceAppCheck: false }, async (request) => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Non authentifié');
 
@@ -176,7 +174,7 @@ exports.rejectBooking = onCall(async (request) => {
 // ─── verifyCheckIn ────────────────────────────────────────────────────────────
 // Called by host when scanning a guest's QR code.
 // Verifies the JWT signature and marks the booking as checked_in.
-exports.verifyCheckIn = onCall(async (request) => {
+exports.verifyCheckIn = onCall({ enforceAppCheck: false }, async (request) => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Non authentifié');
 

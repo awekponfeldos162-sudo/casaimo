@@ -5,50 +5,15 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_utils.dart';
 import '../../../../shared/widgets/layout/empty_state.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-
-class _NotifModel {
-  final String id;
-  final String title;
-  final String body;
-  final String type;
-  final bool isRead;
-  final DateTime createdAt;
-
-  const _NotifModel({
-    required this.id, required this.title, required this.body,
-    required this.type, required this.isRead, required this.createdAt,
-  });
-
-  factory _NotifModel.fromFirestore(DocumentSnapshot doc) {
-    final d = doc.data() as Map<String, dynamic>;
-    return _NotifModel(
-      id: doc.id,
-      title: d['title'] ?? '',
-      body: d['body'] ?? '',
-      type: d['type'] ?? 'info',
-      isRead: d['isRead'] ?? false,
-      createdAt: (d['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-    );
-  }
-}
-
-final _notifsProvider = StreamProvider<List<_NotifModel>>((ref) {
-  final user = ref.watch(authProvider);
-  if (user == null) return Stream.value([]);
-  return FirebaseFirestore.instance
-      .collection('notifications')
-      .where('userId', isEqualTo: user.id)
-      .orderBy('createdAt', descending: true)
-      .snapshots()
-      .map((snap) => snap.docs.map(_NotifModel.fromFirestore).toList());
-});
+import '../../data/models/notification_model.dart';
+import '../providers/notifications_provider.dart';
 
 class NotificationsScreen extends ConsumerWidget {
   const NotificationsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final asyncNotifs = ref.watch(_notifsProvider);
+    final asyncNotifs = ref.watch(notificationsProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -105,24 +70,30 @@ class NotificationsScreen extends ConsumerWidget {
 }
 
 class _NotifTile extends StatelessWidget {
-  final _NotifModel item;
+  final NotificationModel item;
   final VoidCallback onTap;
   const _NotifTile({required this.item, required this.onTap});
 
-  static IconData _icon(String type) => switch (type) {
-    'booking' => Icons.check_circle_rounded,
-    'payment' => Icons.payment_rounded,
-    'review' => Icons.star_rounded,
-    'message' => Icons.message_rounded,
-    _ => Icons.notifications_rounded,
+  static IconData _icon(NotificationType type) => switch (type) {
+    NotificationType.newBooking ||
+    NotificationType.bookingConfirmed ||
+    NotificationType.bookingCheckedIn  => Icons.check_circle_rounded,
+    NotificationType.bookingRejected   => Icons.cancel_rounded,
+    NotificationType.payment           => Icons.payment_rounded,
+    NotificationType.review            => Icons.star_rounded,
+    NotificationType.message           => Icons.message_rounded,
+    NotificationType.info              => Icons.notifications_rounded,
   };
 
-  static Color _color(String type) => switch (type) {
-    'booking' => AppColors.success,
-    'payment' => AppColors.primary,
-    'review' => AppColors.star,
-    'message' => AppColors.info,
-    _ => AppColors.textSecondary,
+  static Color _color(NotificationType type) => switch (type) {
+    NotificationType.newBooking ||
+    NotificationType.bookingConfirmed ||
+    NotificationType.bookingCheckedIn  => AppColors.success,
+    NotificationType.bookingRejected   => AppColors.error,
+    NotificationType.payment           => AppColors.primary,
+    NotificationType.review            => AppColors.star,
+    NotificationType.message           => AppColors.info,
+    NotificationType.info              => AppColors.textSecondary,
   };
 
   @override

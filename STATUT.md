@@ -163,16 +163,6 @@
 
 ## 9. BUILD & DÉPLOIEMENT
 
-| Tâche | Statut | Notes |
-|---|---|---|
-| `flutter analyze` — 0 erreur | ✅ | `No issues found!` |
-| Build APK debug | 🔧 | Gradle 8.14-bin.zip + cache `.cxx` nettoyé, en cours |
-| Build APK release | ❌ | Nécessite build debug stable |
-| Play Store (AAB) | ❌ | |
-| App Store (iOS) | ❌ | |
-| Clé API Google Maps | ❌ | À ajouter dans `AndroidManifest.xml` |
-
----
 
 ## PROCHAINES PRIORITÉS (dans l'ordre)
 

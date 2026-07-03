@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/layout/responsive_center.dart';
 
 class RoleSelectionScreen extends StatelessWidget {
   const RoleSelectionScreen({super.key});
@@ -8,23 +9,46 @@ class RoleSelectionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+    final isWide = isWideScreen(context);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       body: SingleChildScrollView(
-        child: Column(children: [
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: isWide ? 48 : 0),
+          child: ResponsiveCenter(
+            maxWidth: 460,
+            child: DecoratedBox(
+              decoration: isWide
+                  ? BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(28),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 32,
+                          offset: const Offset(0, 12),
+                        ),
+                      ],
+                    )
+                  : const BoxDecoration(),
+              child: ClipRRect(
+                borderRadius: isWide ? BorderRadius.circular(28) : BorderRadius.zero,
+                child: Column(children: [
 
           // ── Section supérieure verte ─────────────────────────────────────
           Container(
-            height: size.height * 0.32,
+            height: isWide ? 200 : size.height * 0.32,
             width: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
                 colors: [Color(0xFF1B5E20), Color(0xFF2E7D32), Color(0xFF388E3C)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.vertical(bottom: Radius.circular(40)),
+              borderRadius: isWide
+                  ? BorderRadius.zero
+                  : const BorderRadius.vertical(bottom: Radius.circular(40)),
             ),
             child: Stack(children: [
               Positioned(top: -30, right: -30, child: _DecorCircle(size: 160, opacity: 0.07)),
@@ -111,7 +135,11 @@ class RoleSelectionScreen extends StatelessWidget {
               const SizedBox(height: 20),
             ]),
           ),
-        ]),
+                ]),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

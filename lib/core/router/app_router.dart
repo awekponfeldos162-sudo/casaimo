@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
+import '../../features/landing/presentation/screens/web_landing_screen.dart';
 import '../../features/auth/presentation/screens/onboarding_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/role_selection_screen.dart';
@@ -17,6 +19,8 @@ import '../../features/listing/presentation/screens/listing_detail_screen.dart';
 import '../../features/booking/presentation/screens/booking_screen.dart';
 import '../../features/booking/presentation/screens/booking_confirmation_screen.dart';
 import '../../features/booking/presentation/screens/booking_detail_screen.dart';
+import '../../features/booking/presentation/screens/booking_ticket_screen.dart';
+import '../../features/booking/presentation/screens/qr_scanner_screen.dart';
 import '../../features/messaging/presentation/screens/call_screen.dart';
 import '../../features/messaging/presentation/screens/conversations_screen.dart';
 import '../../features/messaging/presentation/screens/chat_screen.dart';
@@ -31,6 +35,10 @@ import '../../features/host/presentation/screens/create_listing_screen.dart';
 import '../../features/host/presentation/screens/host_calendar_screen.dart';
 import '../../features/host/presentation/screens/host_bookings_screen.dart';
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
+import '../../features/reviews/presentation/screens/reviews_list_screen.dart';
+import '../../features/reviews/presentation/screens/write_review_screen.dart';
+import '../../features/map/presentation/screens/map_screen.dart';
+import '../../features/booking/data/models/booking_model.dart';
 import '../../shared/widgets/layout/app_scaffold.dart';
 import '../../shared/widgets/layout/host_app_scaffold.dart';
 
@@ -47,7 +55,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   ref.onDispose(notifier.dispose);
 
   return GoRouter(
-    initialLocation: '/splash',
+    initialLocation: kIsWeb ? '/welcome' : '/splash',
     debugLogDiagnostics: false,
     refreshListenable: notifier,
 
@@ -58,8 +66,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isAuth = user != null;
       final isHost = user?.isHost ?? false;
 
+      // Déjà connecté et arrive sur la landing web → direct dans l'app
+      if (path == '/welcome' && isAuth) {
+        return isHost ? '/host/dashboard' : '/home';
+      }
+
       // Écrans publics — jamais redirigés
-      final publicPaths = ['/splash', '/onboarding', '/login', '/signup',
+      final publicPaths = ['/welcome', '/splash', '/onboarding', '/login', '/signup',
         '/role-select', '/signup/client', '/signup/host', '/otp'];
       if (publicPaths.any((p) => path.startsWith(p))) return null;
 
@@ -80,6 +93,9 @@ final routerProvider = Provider<GoRouter>((ref) {
     },
 
     routes: [
+      // ── Landing marketing (web uniquement) ──────────────────────────
+      GoRoute(path: '/welcome', builder: (_, state) => const WebLandingScreen()),
+
       // ── Auth ────────────────────────────────────────────────────────
       GoRoute(path: '/splash',      builder: (_, state) => const SplashScreen()),
       GoRoute(path: '/onboarding',  builder: (_, state) => const OnboardingScreen()),
@@ -140,6 +156,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) => BookingConfirmationScreen(bookingId: state.pathParameters['bookingId']!),
       ),
       GoRoute(
+        path: '/booking-ticket/:bookingId',
+        builder: (_, state) => BookingTicketScreen(bookingId: state.pathParameters['bookingId']!),
+      ),
+      GoRoute(
+        path: '/qr-scanner',
+        builder: (_, state) => const QrScannerScreen(),
+      ),
+      GoRoute(
         path: '/chat/:conversationId',
         builder: (_, state) => ChatScreen(conversationId: state.pathParameters['conversationId']!),
       ),
@@ -162,6 +186,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/notifications',    builder: (_, state) => const NotificationsScreen()),
       GoRoute(
+        path: '/reviews/:listingId',
+        builder: (_, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return ReviewsListScreen(
+            listingId: state.pathParameters['listingId']!,
+            listingTitle: extra?['title'] as String? ?? 'Logement',
+          );
+        },
+      ),
+      GoRoute(
+        path: '/write-review',
+        builder: (_, state) => WriteReviewScreen(booking: state.extra as BookingModel),
+      ),
+      GoRoute(
         path: '/call',
         builder: (_, state) {
           final e = state.extra as Map<String, dynamic>? ?? {};
@@ -172,6 +210,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
+      GoRoute(path: '/map', builder: (_, _) => const MapScreen()),
     ],
 
     errorBuilder: (ctx, state) => Scaffold(

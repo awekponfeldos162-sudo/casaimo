@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs grep -l \"TODO\\\\|FIXME\\\\|XXX\\\\|HACK\")",
+      "PowerShell(gcloud --version 2>&1)",
+      "PowerShell(gcloud auth list 2>&1)",
+      "PowerShell(gcloud projects add-iam-policy-binding casaimo --member=\"serviceAccount:710396968816@cloudbuild.gserviceaccount.com\" --role=\"roles/cloudbuild.builds.builder\" 2>&1)",
+      "PowerShell(gcloud projects add-iam-policy-binding casaimo --member=\"serviceAccount:710396968816@cloudbuild.gserviceaccount.com\" --role=\"roles/iam.serviceAccountUser\" 2>&1)",
+      "PowerShell(gcloud projects add-iam-policy-binding casaimo --member=\"serviceAccount:710396968816@cloudbuild.gserviceaccount.com\" --role=\"roles/cloudfunctions.admin\" 2>&1)",
+      "PowerShell(gcloud projects add-iam-policy-binding casaimo --member=\"serviceAccount:710396968816@cloudbuild.gserviceaccount.com\" --role=\"roles/artifactregistry.writer\" 2>&1)",
+      "PowerShell(gcloud projects get-iam-policy casaimo --flatten=\"bindings[].members\" --format=\"table\\(bindings.role,bindings.members\\)\" --filter=\"bindings.members:710396968816@cloudbuild\" 2>&1)",
+      "PowerShell(gcloud builds log 25baf590-5ff7-4c7e-9430-56e269bca4f7 --region=europe-west1 --project=casaimo 2>&1)",
+      "PowerShell(gcloud builds describe 25baf590-5ff7-4c7e-9430-56e269bca4f7 --region=europe-west1 --project=casaimo --format=\"value\\(statusDetail,failureInfo\\)\" 2>&1)",
+      "PowerShell(gcloud storage buckets list --project=casaimo --format=\"value\\(name\\)\" 2>&1)",
+      "PowerShell(gcloud storage buckets add-iam-policy-binding gs://gcf-v2-sources-710396968816-europe-west1 --member=\"serviceAccount:710396968816@cloudbuild.gserviceaccount.com\" --role=\"roles/storage.objectAdmin\" 2>&1)",
+      "PowerShell(gcloud storage buckets add-iam-policy-binding \"gs://gcf-v2-uploads-710396968816.europe-west1.cloudfunctions.appspot.com\" --member=\"serviceAccount:710396968816@cloudbuild.gserviceaccount.com\" --role=\"roles/storage.objectAdmin\" 2>&1)",
+      "PowerShell(gcloud builds describe 76b0c578-7c97-4d65-b16c-daa855fd4568 --region=europe-west1 --project=casaimo --format=\"value\\(statusDetail,failureInfo,steps[0].status,steps[0].name\\)\" 2>&1)",
+      "PowerShell(gcloud org-policies list --project=casaimo --format=\"table\\(name,spec.rules[0]\\)\" 2>&1)",
+      "Bash(xargs grep -l \"LatLng\\\\|latitude\\\\|geolocator\\\\|google_maps\")",
+      "Bash(flutter clean *)",
+      "Bash(firebase deploy *)",
+      "Bash(git rm *)",
+      "Bash(grep -v \"path\\\\|GoRoute\\\\|import\\\\|//\\\\|builder\")",
+      "Bash(dart analyze *)"
+    ]
+  }
+}

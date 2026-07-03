@@ -13,6 +13,9 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../host/presentation/providers/host_provider.dart';
 import '../../data/models/listing_model.dart';
 import '../providers/listing_provider.dart';
+import '../../../reviews/data/models/review_model.dart';
+import '../../../reviews/presentation/providers/review_provider.dart';
+import '../../../messaging/data/repositories/conversation_repository.dart';
 
 class ListingDetailScreen extends ConsumerStatefulWidget {
   final String listingId;
@@ -275,7 +278,23 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Avis', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                    Text('Avis', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                    if (listing.reviewCount > 0)
+                      TextButton(
+                        onPressed: () => context.push(
+                          '/reviews/${listing.id}',
+                          extra: {'title': listing.title},
+                        ),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          padding: EdgeInsets.zero,
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: Text('Voir tous (${listing.reviewCount})', style: const TextStyle(fontSize: 13)),
+                      ),
+                  ]),
                   const SizedBox(height: 10),
                   Row(children: [
                     const Icon(Icons.star_rounded, color: AppColors.star, size: 32),
@@ -284,8 +303,17 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                     const SizedBox(width: 6),
                     Text('/ 5  (${listing.reviewCount} avis)', style: Theme.of(context).textTheme.bodyMedium),
                   ]),
-                  const SizedBox(height: 6),
-                  const Text('Connectez-vous pour voir les avis détaillés.', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                  const SizedBox(height: 12),
+                  ...ref.watch(listingReviewsProvider(listing.id))
+                      .valueOrNull
+                      ?.take(3)
+                      .map((r) => _ReviewMiniCard(review: r))
+                      .toList() ?? [],
+                  if (listing.reviewCount == 0)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 4),
+                      child: Text('Aucun avis pour le moment.', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                    ),
                 ]),
               ),
 
@@ -313,7 +341,17 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                 listing: listing,
                 otherCount: others.length + 1,
                 onViewAll: () => context.push('/host-profile/${listing.hostId}'),
-                onMessage: () => context.push('/chat/conv_${listing.hostId}'),
+                onMessage: () async {
+                  final user = ref.read(authProvider);
+                  if (user == null) return;
+                  final convId = await ConversationRepository().createOrGet(
+                    user.id, listing.hostId, listing.id, listing.title,
+                    hostName: listing.hostName,
+                    hostPhone: listing.hostPhone,
+                    hostAvatar: listing.hostAvatarUrl,
+                  );
+                  if (context.mounted) context.push('/chat/$convId');
+                },
                 onPhone: listing.hostPhone.isNotEmpty ? () => _openContact('tel:${listing.hostPhone}') : null,
                 onEmail: listing.hostEmail.isNotEmpty ? () => _openContact('mailto:${listing.hostEmail}') : null,
               ),
@@ -754,6 +792,47 @@ class _PolicyRow extends StatelessWidget {
       Expanded(child: Text(label, style: Theme.of(context).textTheme.bodyMedium)),
       Text(value, style: Theme.of(context).textTheme.titleSmall),
     ]);
+  }
+}
+
+// ── Carte avis mini ───────────────────────────────────────────────────────────
+class _ReviewMiniCard extends StatelessWidget {
+  final ReviewModel review;
+  const _ReviewMiniCard({required this.review});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.primaryContainer.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            CircleAvatar(
+              radius: 16,
+              backgroundImage: review.guestAvatar.isNotEmpty ? NetworkImage(review.guestAvatar) : null,
+              child: review.guestAvatar.isEmpty ? Text(review.guestName.isNotEmpty ? review.guestName[0].toUpperCase() : '?') : null,
+            ),
+            const SizedBox(width: 8),
+            Expanded(child: Text(review.guestName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.star_rounded, color: AppColors.star, size: 14),
+              const SizedBox(width: 2),
+              Text(review.rating.toStringAsFixed(1), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+            ]),
+          ]),
+          const SizedBox(height: 8),
+          Text(review.text, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.4), maxLines: 3, overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 4),
+          Text(AppUtils.formatDate(review.createdAt), style: const TextStyle(fontSize: 11, color: AppColors.textHint)),
+        ]),
+      ),
+    );
   }
 }
 

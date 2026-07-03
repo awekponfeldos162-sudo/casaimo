@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AppConstants {
   static const appName = 'CasaImo';
@@ -75,6 +76,13 @@ class AppConstants {
   ];
 
   static const int pageSize = 20;
+
+  // Agora RTC — valeur chargée depuis .env (AGORA_APP_ID)
+  static String get agoraAppId => dotenv.env['AGORA_APP_ID'] ?? '';
+
+  // Google Maps — valeur chargée depuis .env (GOOGLE_MAPS_API_KEY)
+  static String get mapsApiKey => dotenv.env['GOOGLE_MAPS_API_KEY'] ?? '';
+  static bool get mapsEnabled => mapsApiKey.isNotEmpty;
 
   static const List<String> mobileMoneyProviders = [
     'MTN Mobile Money', 'Orange Money', 'Moov Money', 'Wave',

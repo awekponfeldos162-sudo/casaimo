@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import '../../../../core/services/notification_service.dart';
 import '../../data/models/user_model.dart';
 
 class AuthNotifier extends StateNotifier<UserModel?> {
@@ -21,6 +22,7 @@ class AuthNotifier extends StateNotifier<UserModel?> {
     final doc = await _usersCol.doc(user.uid).get();
     if (doc.exists) {
       state = UserModel.fromFirestore(doc);
+      NotificationService.saveTokenForUser(user.uid);
     } else if (_skipNextAutoCreate) {
       // Google signup flow — let the signup screen create the Firestore doc
       _skipNextAutoCreate = false;
@@ -177,6 +179,9 @@ class AuthNotifier extends StateNotifier<UserModel?> {
   }
 
   Future<void> signOut() async {
+    if (state != null) {
+      await NotificationService.clearTokenForUser(state!.id);
+    }
     await GoogleSignIn().signOut();
     await FirebaseAuth.instance.signOut();
   }

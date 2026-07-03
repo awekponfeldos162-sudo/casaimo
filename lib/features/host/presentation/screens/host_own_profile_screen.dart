@@ -32,7 +32,7 @@ class HostOwnProfileScreen extends ConsumerWidget {
             automaticallyImplyLeading: false,
             actions: [
               IconButton(
-                onPressed: () => context.go('/notifications'),
+                onPressed: () => context.push('/notifications'),
                 icon: const Icon(Icons.notifications_none_rounded, color: Colors.white),
               ),
             ],

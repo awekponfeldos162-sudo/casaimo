@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../features/messaging/presentation/providers/messaging_provider.dart';
 
-class HostAppScaffold extends StatelessWidget {
+class HostAppScaffold extends ConsumerWidget {
   final Widget child;
   const HostAppScaffold({super.key, required this.child});
 
@@ -22,8 +24,9 @@ class HostAppScaffold extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final idx = _currentIndex(context);
+    final unread = ref.watch(unreadMessagesCountProvider);
     return Scaffold(
       body: child,
       bottomNavigationBar: Container(
@@ -46,7 +49,7 @@ class HostAppScaffold extends StatelessWidget {
                 _NavItem(icon: Icons.dashboard_outlined, selectedIcon: Icons.dashboard_rounded, label: 'Accueil', selected: idx == 0, onTap: () => context.go('/host/dashboard'), color: const Color(0xFF1565C0)),
                 _NavItem(icon: Icons.home_work_outlined, selectedIcon: Icons.home_work_rounded, label: 'Annonces', selected: idx == 1, onTap: () => context.go('/host/listings'), color: const Color(0xFF1565C0)),
                 _NavItem(icon: Icons.book_online_outlined, selectedIcon: Icons.book_online_rounded, label: 'Réservations', selected: idx == 2, onTap: () => context.go('/host/bookings'), color: const Color(0xFF1565C0)),
-                _NavItem(icon: Icons.chat_bubble_outline_rounded, selectedIcon: Icons.chat_bubble_rounded, label: 'Messages', selected: idx == 3, onTap: () => context.go('/host/messages'), color: const Color(0xFF1565C0)),
+                _NavItem(icon: Icons.chat_bubble_outline_rounded, selectedIcon: Icons.chat_bubble_rounded, label: 'Messages', selected: idx == 3, onTap: () => context.go('/host/messages'), color: const Color(0xFF1565C0), badge: unread),
                 _NavItem(icon: Icons.person_outline_rounded, selectedIcon: Icons.person_rounded, label: 'Profil', selected: idx == 4, onTap: () => context.go('/host/profile'), color: const Color(0xFF1565C0)),
               ],
             ),
@@ -64,6 +67,7 @@ class _NavItem extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
   final Color color;
+  final int badge;
 
   const _NavItem({
     required this.icon,
@@ -72,6 +76,7 @@ class _NavItem extends StatelessWidget {
     required this.selected,
     required this.onTap,
     required this.color,
+    this.badge = 0,
   });
 
   @override
@@ -92,7 +97,31 @@ class _NavItem extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(selected ? (selectedIcon ?? icon) : icon, color: c, size: 22),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(selected ? (selectedIcon ?? icon) : icon, color: c, size: 22),
+                if (badge > 0)
+                  Positioned(
+                    top: -5,
+                    right: -6,
+                    child: Container(
+                      constraints: const BoxConstraints(minWidth: 15, minHeight: 15),
+                      padding: const EdgeInsets.symmetric(horizontal: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Theme.of(context).colorScheme.surface, width: 1.5),
+                      ),
+                      child: Text(
+                        badge > 99 ? '99+' : '$badge',
+                        style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
             const SizedBox(height: 2),
             Text(label, style: TextStyle(fontSize: 10, color: c, fontWeight: selected ? FontWeight.w600 : FontWeight.w400)),
           ],

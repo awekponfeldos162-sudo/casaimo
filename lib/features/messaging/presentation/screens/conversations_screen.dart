@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,17 +6,7 @@ import '../../../../core/utils/app_utils.dart';
 import '../../../../shared/widgets/layout/empty_state.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/message_model.dart';
-
-final conversationsStreamProvider = StreamProvider<List<ConversationModel>>((ref) {
-  final user = ref.watch(authProvider);
-  if (user == null) return Stream.value([]);
-  return FirebaseFirestore.instance
-      .collection('messages')
-      .where('participants', arrayContains: user.id)
-      .orderBy('lastMessageAt', descending: true)
-      .snapshots()
-      .map((snap) => snap.docs.map(ConversationModel.fromFirestore).toList());
-});
+import '../providers/messaging_provider.dart';
 
 class ConversationsScreen extends ConsumerWidget {
   const ConversationsScreen({super.key});

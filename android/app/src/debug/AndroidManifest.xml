@@ -4,4 +4,11 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+
+    <application>
+        <!-- Firebase App Check — jeton de débogage enregistré dans Firebase Console -->
+        <meta-data
+            android:name="com.google.firebase.appcheck.debug.DEBUG_SECRET"
+            android:value="BE6A4996-4DE0-4F4A-919A-BB9E2F218444"/>
+    </application>
 </manifest>
